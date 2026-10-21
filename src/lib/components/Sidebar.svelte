@@ -6,6 +6,7 @@
   const links = [
     { href: '/', label: 'Tablero', icon: 'board' },
     { href: '/staff', label: 'Personal', icon: 'staff' },
+    { href: '/places', label: 'Lugares', icon: 'places' },
     { href: '/settings', label: 'Ajustes', icon: 'settings' }
   ] as const;
 
@@ -54,6 +55,16 @@
                     stroke="currentColor"
                     stroke-width="1.7"
                     stroke-linecap="round"
+                  />
+                </svg>
+              {:else if link.icon === 'places'}
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M5 20V5.5A1.5 1.5 0 0 1 6.5 4h11A1.5 1.5 0 0 1 19 5.5V20M3 20h18M9 8h2m2 0h2M9 12h2m2 0h2M10 20v-4h4v4"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
                   />
                 </svg>
               {:else}

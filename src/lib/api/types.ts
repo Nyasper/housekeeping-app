@@ -87,6 +87,7 @@ export interface PlaceSummary {
 export interface Place extends PlaceSummary {
   status: PlaceStatus | null;
   effective_status: PlaceStatus;
+  recommended_service_type?: ServiceType | null;
   check_in_date: string | null;
   check_out_date: string | null;
   is_active: boolean;

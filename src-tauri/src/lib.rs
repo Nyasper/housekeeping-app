@@ -5,6 +5,7 @@ mod settings;
 mod state;
 pub mod util;
 
+use domain::places::commands as places_commands;
 use domain::staff::commands as staff_commands;
 use tauri::Manager;
 
@@ -54,6 +55,13 @@ pub fn run() {
             staff_commands::staff_absences_create,
             staff_commands::staff_absences_update,
             staff_commands::staff_absences_delete,
+            places_commands::places_list,
+            places_commands::places_get,
+            places_commands::places_create,
+            places_commands::places_update,
+            places_commands::places_deactivate,
+            places_commands::places_reactivate,
+            places_commands::places_recommended_task,
         ])
         .run(tauri::generate_context!())
         .expect("No se pudo iniciar la aplicación");
