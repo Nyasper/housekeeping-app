@@ -867,7 +867,7 @@ Todos en inglés, formato `{domain}_{action}`:
 - [x] **Fase 3 — Servicios.** CRUD con personal obligatorio, transiciones, disponibilidad, asignación asistida. Tests.
 - [x] **Fase 4 — Tablero diario.** Pantalla principal, selector de fecha, pendientes sugeridos, personal, incidencias, toggle de tema y **UX pulida** (estados, atajos, feedback, accesibilidad).
 - [x] **Fase 5 — Incidencias + Reportes.** CRUD incidencias; reportes (servicios por persona, tiempos promedio, ausencias por mes).
-- [ ] **Fase 6 — Exportación + Backup/restore + Ajustes.** CSV/XLSX/PDF en Rust; backup ZIP; restore con swap; pantalla de configuración global con `settingsService`.
+- [x] **Fase 6 — Exportación + Backup/restore + Ajustes.** CSV/XLSX/PDF en Rust; backup ZIP; restore con swap; pantalla de configuración global con `settingsService`.
 - [ ] **Fase 7 — Pulido y release del MVP.** Validaciones finales, mensajes de error en español, **revisión UX/UI con `frontend-design` y `accessibility`**, rendimiento, accesibilidad básica, documentación, **`CHANGELOG.md` con la entrada `0.1.0`**, commit final, `cargo test` + `cargo clippy` + `bun run check` + `bun run build` en verde.
 
 **Fase posterior (fuera del MVP):** inventario de insumos.

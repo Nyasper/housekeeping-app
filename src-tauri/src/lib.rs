@@ -1,3 +1,4 @@
+pub mod backup;
 mod db;
 pub mod domain;
 mod error;
@@ -79,6 +80,11 @@ pub fn run() {
             reports_commands::reports_average_times,
             reports_commands::reports_absences_by_month,
             reports_commands::reports_daily_sheet,
+            reports_commands::export_csv,
+            reports_commands::export_xlsx,
+            reports_commands::export_pdf,
+            backup::backup_create,
+            backup::backup_restore,
         ])
         .run(tauri::generate_context!())
         .expect("No se pudo iniciar la aplicación");

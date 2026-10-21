@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
@@ -8,6 +9,76 @@ use crate::error::CommandError;
 use crate::util::dates::{parse_date, parse_time, validate_date_range};
 
 const SERVICE_TYPES_ORDER: [&str; 4] = ["daily_cleaning", "deep_cleaning", "touch_up", "glass"];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExportKind {
+    DailySheet,
+    ServicesByStaff,
+    AverageTimes,
+    AbsencesByMonth,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct ExportFilters {
+    pub date: Option<String>,
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub month: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportAlignment {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportColumn {
+    pub header: &'static str,
+    pub width_chars: f64,
+    pub width_mm: f32,
+    pub align: ExportAlignment,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExportCell {
+    Text(String),
+    Int(i64),
+    Float1(f64),
+    Float2(f64),
+}
+
+impl ExportCell {
+    pub fn to_csv_string(&self) -> String {
+        match self {
+            Self::Text(value) => value.clone(),
+            Self::Int(value) => value.to_string(),
+            Self::Float1(value) => format!("{value:.1}"),
+            Self::Float2(value) => format!("{value:.2}"),
+        }
+    }
+
+    pub fn to_display_es(&self) -> String {
+        match self {
+            Self::Text(value) => value.clone(),
+            Self::Int(value) => value.to_string(),
+            Self::Float1(value) => format!("{value:.1}").replace('.', ","),
+            Self::Float2(value) => format!("{value:.2}").replace('.', ","),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExportDataset {
+    pub kind: ExportKind,
+    pub title: String,
+    pub subtitle: String,
+    pub columns: Vec<ExportColumn>,
+    pub rows: Vec<Vec<ExportCell>>,
+    pub totals_row: Vec<ExportCell>,
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DateRange {
@@ -522,6 +593,486 @@ pub async fn daily_sheet(
     Ok(result)
 }
 
+pub fn service_type_label_es(code: &str) -> &str {
+    match code {
+        "glass" => "Vidrios",
+        "daily_cleaning" => "Repaso",
+        "deep_cleaning" => "Limpieza general",
+        "touch_up" => "Retoque",
+        _ => code,
+    }
+}
+
+pub fn service_status_label_es(code: &str) -> &str {
+    match code {
+        "planned" => "Planificado",
+        "in_progress" => "En progreso",
+        "completed" => "Completado",
+        "cancelled" => "Cancelado",
+        _ => code,
+    }
+}
+
+pub fn absence_type_label_es(code: &str) -> &str {
+    match code {
+        "medical_certificate" => "Certificado médico",
+        "leave" => "Licencia",
+        "absence" => "Falta",
+        _ => code,
+    }
+}
+
+pub fn format_date_es(iso_date: &str) -> String {
+    if let Ok(parsed) = NaiveDate::parse_from_str(iso_date.trim(), "%Y-%m-%d") {
+        parsed.format("%d/%m/%Y").to_string()
+    } else {
+        iso_date.trim().to_string()
+    }
+}
+
+pub fn format_month_es(month: &str) -> String {
+    if let Ok((first, _)) = parse_month_bounds(month) {
+        let month_name = match first.month() {
+            1 => "Enero",
+            2 => "Febrero",
+            3 => "Marzo",
+            4 => "Abril",
+            5 => "Mayo",
+            6 => "Junio",
+            7 => "Julio",
+            8 => "Agosto",
+            9 => "Septiembre",
+            10 => "Octubre",
+            11 => "Noviembre",
+            12 => "Diciembre",
+            _ => month,
+        };
+        format!("{month_name} {}", first.year())
+    } else {
+        month.trim().to_string()
+    }
+}
+
+/// Validates the destination path and returns `(final_path, temp_path)` for atomic writing.
+pub fn prepare_export_destination(dest_path: &str) -> Result<(PathBuf, PathBuf), CommandError> {
+    let trimmed = dest_path.trim();
+    if trimmed.is_empty() {
+        return Err(CommandError::new(
+            "validation",
+            "Seleccioná dónde guardar el archivo exportado.",
+        ));
+    }
+
+    let final_path = PathBuf::from(trimmed);
+    if let Some(parent) = final_path.parent()
+        && !parent.as_os_str().is_empty()
+        && !parent.exists()
+    {
+        return Err(CommandError::new(
+            "export_failed",
+            "La carpeta seleccionada para exportar no existe.",
+        ));
+    }
+
+    let mut temp_os = final_path.as_os_str().to_os_string();
+    temp_os.push(".tmp");
+    let temp_path = PathBuf::from(temp_os);
+
+    if temp_path.exists() {
+        let _ = std::fs::remove_file(&temp_path);
+    }
+
+    Ok((final_path, temp_path))
+}
+
+/// Atomically moves `temp_path` over `final_path` and returns the canonical/display string.
+pub fn finalize_export_destination(
+    final_path: &Path,
+    temp_path: &Path,
+) -> Result<String, CommandError> {
+    std::fs::rename(temp_path, final_path).map_err(|error| {
+        let _ = std::fs::remove_file(temp_path);
+        eprintln!("Export rename error: {error}");
+        CommandError::new(
+            "export_failed",
+            "No se pudo guardar el archivo exportado en la ruta seleccionada.",
+        )
+    })?;
+
+    Ok(final_path.to_string_lossy().into_owned())
+}
+
+/// Fetches and formats the dataset for any report export (`CSV`, `XLSX`, `PDF`).
+pub async fn load_export_dataset(
+    pool: &SqlitePool,
+    kind: ExportKind,
+    filters: &ExportFilters,
+) -> Result<ExportDataset, CommandError> {
+    match kind {
+        ExportKind::DailySheet => {
+            let date = filters
+                .date
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    CommandError::new(
+                        "validation",
+                        "La fecha es obligatoria para exportar la planilla diaria.",
+                    )
+                })?;
+
+            let rows = daily_sheet(pool, date).await?;
+            let total_services = rows.len() as i64;
+            let completed_count = rows.iter().filter(|r| r.status == "completed").count() as i64;
+            let total_minutes: i64 = rows.iter().filter_map(|r| r.duration_minutes).sum();
+            let open_incidents: i64 = rows.iter().map(|r| r.open_incidents_count).sum();
+
+            let table_rows = rows
+                .into_iter()
+                .map(|row| {
+                    let schedule = match (&row.start_time, &row.end_time) {
+                        (Some(start), Some(end)) => format!("{start} - {end}"),
+                        (Some(start), None) => format!("Desde {start}"),
+                        (None, Some(end)) => format!("Hasta {end}"),
+                        (None, None) => "Sin horario".to_string(),
+                    };
+                    let duration_cell = match row.duration_minutes {
+                        Some(mins) => ExportCell::Int(mins),
+                        None => ExportCell::Text("—".to_string()),
+                    };
+                    let incidents_text = if row.incidents_summary.is_empty() {
+                        "Sin incidencias".to_string()
+                    } else {
+                        row.incidents_summary.join(" | ")
+                    };
+
+                    vec![
+                        ExportCell::Text(row.place_name),
+                        ExportCell::Text(row.place_location.unwrap_or_else(|| "—".to_string())),
+                        ExportCell::Text(service_type_label_es(&row.service_type).to_string()),
+                        ExportCell::Text(row.staff_names.join(", ")),
+                        ExportCell::Text(schedule),
+                        duration_cell,
+                        ExportCell::Text(service_status_label_es(&row.status).to_string()),
+                        ExportCell::Text(incidents_text),
+                        ExportCell::Text(row.notes.unwrap_or_default()),
+                    ]
+                })
+                .collect();
+
+            let totals_row = vec![
+                ExportCell::Text("Total".to_string()),
+                ExportCell::Text(format!("{total_services} servicio(s)")),
+                ExportCell::Text(format!("{completed_count} completado(s)")),
+                ExportCell::Text(String::new()),
+                ExportCell::Text(String::new()),
+                ExportCell::Int(total_minutes),
+                ExportCell::Text(String::new()),
+                ExportCell::Text(format!("{open_incidents} abierta(s)")),
+                ExportCell::Text(String::new()),
+            ];
+
+            Ok(ExportDataset {
+                kind,
+                title: "Planilla diaria de servicios".to_string(),
+                subtitle: format!("Fecha: {}", format_date_es(date)),
+                columns: vec![
+                    ExportColumn {
+                        header: "Lugar",
+                        width_chars: 20.0,
+                        width_mm: 32.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Ubicación",
+                        width_chars: 14.0,
+                        width_mm: 22.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Tipo de servicio",
+                        width_chars: 18.0,
+                        width_mm: 28.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Personal asignado",
+                        width_chars: 30.0,
+                        width_mm: 48.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Horario",
+                        width_chars: 15.0,
+                        width_mm: 24.0,
+                        align: ExportAlignment::Center,
+                    },
+                    ExportColumn {
+                        header: "Duración (min)",
+                        width_chars: 14.0,
+                        width_mm: 22.0,
+                        align: ExportAlignment::Right,
+                    },
+                    ExportColumn {
+                        header: "Estado",
+                        width_chars: 14.0,
+                        width_mm: 23.0,
+                        align: ExportAlignment::Center,
+                    },
+                    ExportColumn {
+                        header: "Incidencias",
+                        width_chars: 28.0,
+                        width_mm: 38.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Notas",
+                        width_chars: 24.0,
+                        width_mm: 32.0,
+                        align: ExportAlignment::Left,
+                    },
+                ],
+                rows: table_rows,
+                totals_row,
+            })
+        }
+        ExportKind::ServicesByStaff => {
+            let from = filters
+                .from
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    CommandError::new(
+                        "validation",
+                        "La fecha inicial es obligatoria para exportar el reporte.",
+                    )
+                })?;
+            let to = filters
+                .to
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    CommandError::new(
+                        "validation",
+                        "La fecha final es obligatoria para exportar el reporte.",
+                    )
+                })?;
+
+            let range = DateRange {
+                from: from.to_string(),
+                to: to.to_string(),
+            };
+            let rows = services_by_staff(pool, &range).await?;
+            let total_services: i64 = rows.iter().map(|r| r.service_count).sum();
+            let total_hours: f64 =
+                ((rows.iter().map(|r| r.total_hours).sum::<f64>()) * 100.0).round() / 100.0;
+
+            let table_rows = rows
+                .into_iter()
+                .map(|row| {
+                    vec![
+                        ExportCell::Text(row.staff_name),
+                        ExportCell::Int(row.service_count),
+                        ExportCell::Float2(row.total_hours),
+                    ]
+                })
+                .collect();
+
+            let totals_row = vec![
+                ExportCell::Text("Total".to_string()),
+                ExportCell::Int(total_services),
+                ExportCell::Float2(total_hours),
+            ];
+
+            Ok(ExportDataset {
+                kind,
+                title: "Servicios y horas por funcionario".to_string(),
+                subtitle: format!(
+                    "Período: {} al {}",
+                    format_date_es(from),
+                    format_date_es(to)
+                ),
+                columns: vec![
+                    ExportColumn {
+                        header: "Funcionario",
+                        width_chars: 34.0,
+                        width_mm: 120.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Servicios realizados",
+                        width_chars: 22.0,
+                        width_mm: 75.0,
+                        align: ExportAlignment::Right,
+                    },
+                    ExportColumn {
+                        header: "Horas totales",
+                        width_chars: 20.0,
+                        width_mm: 74.0,
+                        align: ExportAlignment::Right,
+                    },
+                ],
+                rows: table_rows,
+                totals_row,
+            })
+        }
+        ExportKind::AverageTimes => {
+            let from = filters
+                .from
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    CommandError::new(
+                        "validation",
+                        "La fecha inicial es obligatoria para exportar el reporte.",
+                    )
+                })?;
+            let to = filters
+                .to
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    CommandError::new(
+                        "validation",
+                        "La fecha final es obligatoria para exportar el reporte.",
+                    )
+                })?;
+
+            let range = DateRange {
+                from: from.to_string(),
+                to: to.to_string(),
+            };
+            let rows = average_times(pool, &range).await?;
+            let total_completed: i64 = rows.iter().map(|r| r.completed_services).sum();
+            let weighted_sum: f64 = rows
+                .iter()
+                .map(|r| r.average_minutes * (r.completed_services as f64))
+                .sum();
+            let weighted_avg = if total_completed > 0 {
+                ((weighted_sum / total_completed as f64) * 10.0).round() / 10.0
+            } else {
+                0.0
+            };
+
+            let table_rows = rows
+                .into_iter()
+                .map(|row| {
+                    vec![
+                        ExportCell::Text(service_type_label_es(&row.service_type).to_string()),
+                        ExportCell::Int(row.completed_services),
+                        ExportCell::Float1(row.average_minutes),
+                    ]
+                })
+                .collect();
+
+            let totals_row = vec![
+                ExportCell::Text("Total / Promedio ponderado".to_string()),
+                ExportCell::Int(total_completed),
+                ExportCell::Float1(weighted_avg),
+            ];
+
+            Ok(ExportDataset {
+                kind,
+                title: "Tiempos promedio por tipo de servicio".to_string(),
+                subtitle: format!(
+                    "Período: {} al {}",
+                    format_date_es(from),
+                    format_date_es(to)
+                ),
+                columns: vec![
+                    ExportColumn {
+                        header: "Tipo de servicio",
+                        width_chars: 32.0,
+                        width_mm: 115.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Servicios completados",
+                        width_chars: 24.0,
+                        width_mm: 77.0,
+                        align: ExportAlignment::Right,
+                    },
+                    ExportColumn {
+                        header: "Tiempo promedio (min)",
+                        width_chars: 24.0,
+                        width_mm: 77.0,
+                        align: ExportAlignment::Right,
+                    },
+                ],
+                rows: table_rows,
+                totals_row,
+            })
+        }
+        ExportKind::AbsencesByMonth => {
+            let month = filters
+                .month
+                .as_deref()
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| {
+                    CommandError::new(
+                        "validation",
+                        "El mes es obligatorio para exportar el reporte de ausencias.",
+                    )
+                })?;
+
+            let rows = absences_by_month(pool, month).await?;
+            let total_records = rows.len();
+            let total_days: i64 = rows.iter().map(|r| r.days).sum();
+
+            let table_rows = rows
+                .into_iter()
+                .map(|row| {
+                    vec![
+                        ExportCell::Text(row.staff_name),
+                        ExportCell::Text(absence_type_label_es(&row.absence_type).to_string()),
+                        ExportCell::Int(row.days),
+                    ]
+                })
+                .collect();
+
+            let totals_row = vec![
+                ExportCell::Text("Total".to_string()),
+                ExportCell::Text(format!("{total_records} registro(s)")),
+                ExportCell::Int(total_days),
+            ];
+
+            Ok(ExportDataset {
+                kind,
+                title: "Ausencias y licencias por mes".to_string(),
+                subtitle: format!("Mes: {}", format_month_es(month)),
+                columns: vec![
+                    ExportColumn {
+                        header: "Funcionario",
+                        width_chars: 34.0,
+                        width_mm: 115.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Tipo de ausencia",
+                        width_chars: 26.0,
+                        width_mm: 84.0,
+                        align: ExportAlignment::Left,
+                    },
+                    ExportColumn {
+                        header: "Días en el mes",
+                        width_chars: 18.0,
+                        width_mm: 70.0,
+                        align: ExportAlignment::Right,
+                    },
+                ],
+                rows: table_rows,
+                totals_row,
+            })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -801,6 +1352,130 @@ mod tests {
             assert_eq!(oct.len(), 1);
             assert_eq!(oct[0].absence_type, "leave");
             assert_eq!(oct[0].days, 5); // 3 + 2
+
+            pool.close().await;
+        });
+    }
+
+    #[test]
+    fn exports_csv_xlsx_and_pdf_generate_valid_non_empty_files() {
+        tauri::async_runtime::block_on(async {
+            let pool = test_pool().await;
+            let temp = tempfile::TempDir::new().expect("tempdir");
+
+            let place = places_service::create_place(
+                &pool,
+                PlaceInput {
+                    name: "Apto 302".to_string(),
+                    place_type: "apartment".to_string(),
+                    status: None,
+                    location: Some("Piso 3".to_string()),
+                    check_in_date: None,
+                    check_out_date: None,
+                    notes: None,
+                },
+            )
+            .await
+            .expect("place");
+
+            let staff = staff_service::create_staff(
+                &pool,
+                None,
+                StaffInput {
+                    first_name: "Sofía".to_string(),
+                    last_name: "Peña".to_string(),
+                    birth_date: None,
+                    phone: None,
+                    national_id: "70011118".to_string(),
+                    address: None,
+                    gender: "female".to_string(),
+                    role: "maid".to_string(),
+                    is_seasonal: false,
+                    season_start_date: None,
+                    season_end_date: None,
+                    notes: None,
+                    photo_source_path: None,
+                    remove_photo: false,
+                },
+            )
+            .await
+            .expect("staff");
+
+            cleaning_service::create_service(
+                &pool,
+                None,
+                CleaningServiceInput {
+                    place_id: place.id,
+                    date: "2026-10-15".to_string(),
+                    start_time: Some("09:00".to_string()),
+                    end_time: Some("10:30".to_string()),
+                    service_type: "deep_cleaning".to_string(),
+                    status: "completed".to_string(),
+                    notes: Some("Limpieza con ñ y acentos: Sofía Peña".to_string()),
+                    staff: vec![ServiceStaffInput {
+                        staff_id: staff.id,
+                        is_lead: true,
+                    }],
+                },
+            )
+            .await
+            .expect("service");
+
+            let filters = ExportFilters {
+                date: Some("2026-10-15".to_string()),
+                from: Some("2026-10-01".to_string()),
+                to: Some("2026-10-31".to_string()),
+                month: Some("2026-10".to_string()),
+            };
+
+            for kind in [
+                ExportKind::DailySheet,
+                ExportKind::ServicesByStaff,
+                ExportKind::AverageTimes,
+                ExportKind::AbsencesByMonth,
+            ] {
+                let csv_path = temp.path().join(format!("{kind:?}.csv"));
+                let xlsx_path = temp.path().join(format!("{kind:?}.xlsx"));
+                let pdf_path = temp.path().join(format!("{kind:?}.pdf"));
+
+                crate::domain::reports::export_csv::export_csv(
+                    &pool,
+                    kind,
+                    &filters,
+                    &csv_path.to_string_lossy(),
+                )
+                .await
+                .expect("csv export");
+
+                let csv_bytes = std::fs::read(&csv_path).expect("read csv");
+                assert!(csv_bytes.starts_with(&[0xEF, 0xBB, 0xBF]));
+                let csv_text = String::from_utf8(csv_bytes[3..].to_vec()).expect("utf8 csv");
+                assert!(!csv_text.lines().next().unwrap_or_default().is_empty());
+
+                crate::domain::reports::export_xlsx::export_xlsx(
+                    &pool,
+                    kind,
+                    &filters,
+                    &xlsx_path.to_string_lossy(),
+                )
+                .await
+                .expect("xlsx export");
+                let xlsx_bytes = std::fs::read(&xlsx_path).expect("read xlsx");
+                assert!(xlsx_bytes.len() > 100);
+                assert!(xlsx_bytes.starts_with(b"PK\x03\x04"));
+
+                crate::domain::reports::export_pdf::export_pdf(
+                    &pool,
+                    kind,
+                    &filters,
+                    &pdf_path.to_string_lossy(),
+                )
+                .await
+                .expect("pdf export");
+                let pdf_bytes = std::fs::read(&pdf_path).expect("read pdf");
+                assert!(pdf_bytes.len() > 200);
+                assert!(pdf_bytes.starts_with(b"%PDF-"));
+            }
 
             pool.close().await;
         });

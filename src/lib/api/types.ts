@@ -264,3 +264,19 @@ export interface ExportFilters {
   month?: string | null;
 }
 
+export interface BackupCounts {
+  staff: number;
+  places: number;
+  cleaning_services: number;
+  incidents: number;
+}
+
+export interface BackupManifest {
+  app_version: string;
+  schema_version: number;
+  format_version: number;
+  created_at: string;
+  counts: BackupCounts;
+}
+
+

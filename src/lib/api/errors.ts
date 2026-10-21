@@ -22,15 +22,24 @@ const FALLBACK_MESSAGE = 'Ocurrió un error inesperado. Volvé a intentarlo.';
 
 const codeMessages: Record<string, string> = {
   app_data_dir: 'No se pudo acceder a la carpeta de datos de la aplicación.',
+  backup_failed: 'No se pudo crear el archivo de respaldo.',
+  backup_folder_missing: 'La carpeta seleccionada para guardar el respaldo no existe.',
+  backup_not_found: 'El archivo de respaldo seleccionado no existe.',
+  backup_same_file: 'Elegí otra ubicación: no se puede sobrescribir la base de datos activa.',
   blocked: 'La operación está bloqueada por una regla de la aplicación.',
   constraint: 'Los datos no cumplen una regla de la base de datos.',
   database: 'No se pudo completar la operación en la base de datos.',
   database_open: 'No se pudo abrir la base de datos de la aplicación.',
   duplicate: 'Ya existe un registro con esos datos.',
+  export_failed: 'No se pudo generar el archivo exportado.',
   filesystem: 'No se pudo acceder a un archivo de la aplicación.',
   foreign_key: 'La operación hace referencia a datos que no existen.',
+  invalid_backup: 'El archivo seleccionado no es un respaldo válido de Gestión de Limpieza.',
   not_found: 'No se encontró el registro solicitado.',
   required: 'Faltan datos obligatorios para completar la operación.',
+  restore_failed: 'No se pudo restaurar el respaldo.',
+  restore_safety_failed: 'No se pudo crear la copia de seguridad previa a la restauración.',
+  restore_same_file: 'El archivo seleccionado ya es la base de datos activa.',
   settings_invalid: 'Los valores de configuración están fuera del rango permitido.',
   validation: 'Revisá los datos ingresados.'
 };

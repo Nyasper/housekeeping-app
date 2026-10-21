@@ -7,9 +7,11 @@
     serviceStatusLabels,
     serviceTypeLabels
   } from '#lib/api/labels.js';
-  import type { ExportKind } from '#lib/api/types.js';
+  import type { ExportFilters, ExportFormat, ExportKind } from '#lib/api/types.js';
   import EmptyState from '#lib/components/EmptyState.svelte';
+  import Toast from '#lib/components/Toast.svelte';
   import { dateService } from '#lib/services/dateService.svelte.js';
+  import { exportService } from '#lib/services/exportService.svelte.js';
   import { reportsService } from '#lib/services/reportsService.svelte.js';
   import {
     currentMonthIso,
@@ -28,10 +30,55 @@
   let rangeTo = $state(initialRange.to);
   let selectedMonth = $state(currentMonthIso());
   let sheetDate = $state(dateService.selectedDate);
+  let toastMessage = $state<string | null>(null);
+  let toastTone = $state<'success' | 'warning' | 'error'>('success');
 
   const rangeInvalid = $derived(
     Boolean(rangeFrom && rangeTo && rangeFrom > rangeTo)
   );
+
+  const currentExportFilters = $derived<ExportFilters>({
+    date: sheetDate,
+    from: rangeFrom,
+    to: rangeTo,
+    month: selectedMonth
+  });
+
+  const canExportCurrentTab = $derived.by(() => {
+    if (exportService.exporting || reportsService.loading) {
+      return false;
+    }
+    if (activeTab === 'services_by_staff' || activeTab === 'average_times') {
+      return Boolean(rangeFrom && rangeTo && !rangeInvalid);
+    }
+    if (activeTab === 'absences_by_month') {
+      return Boolean(selectedMonth);
+    }
+    return Boolean(sheetDate);
+  });
+
+  async function handleExport(format: ExportFormat): Promise<void> {
+    if (!canExportCurrentTab) {
+      return;
+    }
+    toastMessage = null;
+    exportService.clearError();
+
+    const savedPath = await exportService.exportReport(
+      activeTab,
+      format,
+      currentExportFilters
+    );
+
+    if (savedPath) {
+      const formatLabel = format.toUpperCase();
+      toastTone = 'success';
+      toastMessage = `Archivo ${formatLabel} exportado en «${savedPath}».`;
+    } else if (exportService.error) {
+      toastTone = 'error';
+      toastMessage = exportService.error;
+    }
+  }
 
   async function loadActiveTab(): Promise<void> {
     if (activeTab === 'services_by_staff' || activeTab === 'average_times') {
@@ -102,14 +149,22 @@
 
 <header class="page-header">
   <div>
-    <p class="date-line">Historial y estadísticas</p>
+    <p class="date-line">Historial, estadísticas y documentos imprimibles</p>
     <h1 class="page-title">Reportes</h1>
     <p class="page-lede">
       Consultá servicios y horas por funcionario, tiempos promedio por tipo de tarea, ausencias
-      mensuales y la planilla operativa diaria.
+      mensuales y la planilla operativa diaria. Exportá cualquier vista en CSV, XLSX o PDF.
     </p>
   </div>
 </header>
+
+<Toast
+  message={toastMessage}
+  tone={toastTone}
+  ondismiss={() => {
+    toastMessage = null;
+  }}
+/>
 
 <div class="tabs-bar panel" role="tablist" aria-label="Tipos de reporte">
   <button
@@ -158,10 +213,10 @@
   </button>
 </div>
 
-<section class="filters-bar panel" aria-label="Período del reporte">
-  {#if activeTab === 'services_by_staff' || activeTab === 'average_times'}
-    <div class="filters-row">
-      <div class="filter-group">
+<section class="filters-bar panel" aria-label="Período y exportación del reporte">
+  <div class="filters-row">
+    <div class="filter-group">
+      {#if activeTab === 'services_by_staff' || activeTab === 'average_times'}
         <div class="filter-field">
           <label for="report-range-from">Desde</label>
           <input
@@ -192,16 +247,7 @@
         >
           Mes actual
         </button>
-      </div>
-      {#if rangeInvalid}
-        <p class="range-error" role="alert">
-          La fecha de inicio no puede ser posterior a la fecha de fin.
-        </p>
-      {/if}
-    </div>
-  {:else if activeTab === 'absences_by_month'}
-    <div class="filters-row">
-      <div class="filter-group">
+      {:else if activeTab === 'absences_by_month'}
         <div class="filter-field">
           <label for="report-month">Mes a consultar</label>
           <input
@@ -220,11 +266,7 @@
         >
           Mes actual
         </button>
-      </div>
-    </div>
-  {:else}
-    <div class="filters-row">
-      <div class="filter-group">
+      {:else}
         <div class="filter-field">
           <label for="report-sheet-date">Fecha de la planilla</label>
           <input
@@ -243,8 +285,47 @@
         >
           Hoy
         </button>
-      </div>
+      {/if}
     </div>
+
+    <div class="export-actions" role="group" aria-label="Exportar reporte activo">
+      <button
+        type="button"
+        class="button button-secondary"
+        onclick={() => handleExport('csv')}
+        disabled={!canExportCurrentTab}
+      >
+        {exportService.exporting && exportService.activeFormat === 'csv'
+          ? 'Exportando CSV…'
+          : 'Exportar CSV'}
+      </button>
+      <button
+        type="button"
+        class="button button-secondary"
+        onclick={() => handleExport('xlsx')}
+        disabled={!canExportCurrentTab}
+      >
+        {exportService.exporting && exportService.activeFormat === 'xlsx'
+          ? 'Generando XLSX…'
+          : 'Planilla XLSX'}
+      </button>
+      <button
+        type="button"
+        class="button button-primary"
+        onclick={() => handleExport('pdf')}
+        disabled={!canExportCurrentTab}
+      >
+        {exportService.exporting && exportService.activeFormat === 'pdf'
+          ? 'Generando PDF…'
+          : 'Planilla PDF'}
+      </button>
+    </div>
+  </div>
+
+  {#if (activeTab === 'services_by_staff' || activeTab === 'average_times') && rangeInvalid}
+    <p class="range-error" role="alert">
+      La fecha de inicio no puede ser posterior a la fecha de fin.
+    </p>
   {/if}
 </section>
 
@@ -608,7 +689,15 @@
     min-width: 11rem;
   }
 
+  .export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
   .range-error {
+    margin-top: var(--space-3);
     color: var(--color-danger);
     font-size: var(--text-xs);
     font-weight: 650;
