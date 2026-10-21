@@ -6,9 +6,12 @@ use crate::error::CommandError;
 use crate::state::DbState;
 
 #[tauri::command]
-pub async fn places_list(state: State<'_, DbState>) -> Result<Vec<Place>, CommandError> {
+pub async fn places_list(
+    date: Option<String>,
+    state: State<'_, DbState>,
+) -> Result<Vec<Place>, CommandError> {
     let pool = state.pool().read().await.clone();
-    service::list_places(&pool).await
+    service::list_places_for_date(&pool, date.as_deref()).await
 }
 
 #[tauri::command]

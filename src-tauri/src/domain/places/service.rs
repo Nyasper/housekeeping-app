@@ -141,13 +141,23 @@ async fn ensure_unique_place_name(
 }
 
 pub async fn list_places(pool: &SqlitePool) -> Result<Vec<Place>, CommandError> {
+    list_places_for_date(pool, None).await
+}
+
+pub async fn list_places_for_date(
+    pool: &SqlitePool,
+    date: Option<&str>,
+) -> Result<Vec<Place>, CommandError> {
     let rows = repo::list_place_rows(pool).await?;
     let app_settings = settings::get_settings(pool).await?;
-    let today = Local::now().date_naive();
+    let reference_date = match date.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(raw) => parse_date(raw, "referencia")?,
+        None => Local::now().date_naive(),
+    };
 
     Ok(rows
         .into_iter()
-        .map(|row| map_row_to_place(row, today, app_settings))
+        .map(|row| map_row_to_place(row, reference_date, app_settings))
         .collect())
 }
 

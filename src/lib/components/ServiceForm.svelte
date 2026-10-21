@@ -20,6 +20,8 @@
 
   interface Props {
     initial?: CleaningService | null;
+    initialPlaceId?: number | null;
+    initialServiceType?: ServiceType | null;
     defaultDate: string;
     places: Place[];
     allActiveStaff: Staff[];
@@ -43,6 +45,8 @@
 
   let {
     initial = null,
+    initialPlaceId = null,
+    initialServiceType = null,
     defaultDate,
     places,
     allActiveStaff,
@@ -60,9 +64,17 @@
 
   const activePlaces = $derived(places.filter((p) => p.is_active || p.id === initial?.place_id));
 
-  let placeId = $derived<number>(initial?.place_id ?? activePlaces[0]?.id ?? 0);
+  let placeId = $derived<number>(
+    initial?.place_id ?? initialPlaceId ?? activePlaces[0]?.id ?? 0
+  );
   let date = $derived(initial?.date ?? defaultDate);
-  let serviceType = $derived<ServiceType>(initial?.service_type ?? 'daily_cleaning');
+  let serviceType = $derived<ServiceType>(
+    initial?.service_type ??
+      initialServiceType ??
+      activePlaces.find((p) => p.id === (initialPlaceId ?? activePlaces[0]?.id))
+        ?.recommended_service_type ??
+      'daily_cleaning'
+  );
   let status = $derived<ServiceStatus>(initial?.status ?? 'planned');
   let startTime = $derived(initial?.start_time ?? '');
   let endTime = $derived(initial?.end_time ?? '');

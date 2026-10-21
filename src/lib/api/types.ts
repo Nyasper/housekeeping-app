@@ -179,6 +179,9 @@ export interface StaffSuggestion {
 export interface Incident {
   id: number;
   service_id: number;
+  place_id: number;
+  place_name: string;
+  service_type: ServiceType;
   type: IncidentType;
   description: string;
   photo_path: string | null;
@@ -194,6 +197,14 @@ export interface IncidentInput {
   type: IncidentType;
   description: string;
   date: string;
+  photo_source_path?: string | null;
+}
+
+export interface IncidentListFilters {
+  status?: IncidentStatus | null;
+  type?: IncidentType | null;
+  date?: string | null;
+  service_id?: number | null;
 }
 
 export interface DateRange {

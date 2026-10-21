@@ -6,6 +6,7 @@ mod state;
 pub mod util;
 
 use domain::cleaning::commands as cleaning_commands;
+use domain::incidents::commands as incidents_commands;
 use domain::places::commands as places_commands;
 use domain::staff::commands as staff_commands;
 use tauri::Manager;
@@ -70,6 +71,9 @@ pub fn run() {
             cleaning_commands::cleaning_set_status,
             cleaning_commands::cleaning_set_staff,
             cleaning_commands::cleaning_suggest_staff,
+            incidents_commands::incidents_list,
+            incidents_commands::incidents_create,
+            incidents_commands::incidents_set_status,
         ])
         .run(tauri::generate_context!())
         .expect("No se pudo iniciar la aplicación");

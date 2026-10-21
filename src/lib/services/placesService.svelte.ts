@@ -13,12 +13,18 @@ export class PlacesService {
   loading = $state(false);
   saving = $state(false);
   error = $state<string | null>(null);
+  referenceDate = $state<string | null>(null);
 
-  async load(): Promise<void> {
+  async load(date?: string): Promise<void> {
+    if (date !== undefined) {
+      this.referenceDate = date;
+    }
     this.loading = true;
     this.error = null;
     try {
-      this.items = await call<Place[]>('places_list');
+      this.items = await call<Place[]>('places_list', {
+        date: this.referenceDate ?? null
+      });
     } catch (cause) {
       this.error = errorMessage(cause);
     } finally {
