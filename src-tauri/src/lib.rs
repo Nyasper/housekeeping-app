@@ -8,6 +8,7 @@ pub mod util;
 use domain::cleaning::commands as cleaning_commands;
 use domain::incidents::commands as incidents_commands;
 use domain::places::commands as places_commands;
+use domain::reports::commands as reports_commands;
 use domain::staff::commands as staff_commands;
 use tauri::Manager;
 
@@ -74,6 +75,10 @@ pub fn run() {
             incidents_commands::incidents_list,
             incidents_commands::incidents_create,
             incidents_commands::incidents_set_status,
+            reports_commands::reports_services_by_staff,
+            reports_commands::reports_average_times,
+            reports_commands::reports_absences_by_month,
+            reports_commands::reports_daily_sheet,
         ])
         .run(tauri::generate_context!())
         .expect("No se pudo iniciar la aplicación");

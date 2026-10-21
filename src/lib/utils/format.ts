@@ -54,6 +54,24 @@ export function todayIso(now: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function currentMonthIso(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+export function currentMonthRangeIso(now: Date = new Date()): { from: string; to: string } {
+  const year = now.getFullYear();
+  const monthIndex = now.getMonth();
+  const month = String(monthIndex + 1).padStart(2, '0');
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  const lastDayPadded = String(lastDay).padStart(2, '0');
+  return {
+    from: `${year}-${month}-01`,
+    to: `${year}-${month}-${lastDayPadded}`
+  };
+}
+
 export function nowTimeIso(now: Date = new Date()): string {
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');

@@ -8,6 +8,8 @@
     { href: '/staff', label: 'Personal', icon: 'staff' },
     { href: '/places', label: 'Lugares', icon: 'places' },
     { href: '/cleaning', label: 'Servicios', icon: 'cleaning' },
+    { href: '/incidents', label: 'Incidencias', icon: 'incidents' },
+    { href: '/reports', label: 'Reportes', icon: 'reports' },
     { href: '/settings', label: 'Ajustes', icon: 'settings' }
   ] as const;
 
@@ -76,6 +78,30 @@
                     stroke-width="1.7"
                     stroke-linecap="round"
                     stroke-linejoin="round"
+                  />
+                </svg>
+              {:else if link.icon === 'incidents'}
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M12 4.5 20 18.5a1 1 0 0 1-.87 1.5H4.87A1 1 0 0 1 4 18.5L12 4.5Z"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M12 10v4.2m0 2.8h.01"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              {:else if link.icon === 'reports'}
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M5 19.5h14M7.5 16v-5m4.5 5V7m4.5 9v-3.5"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
                   />
                 </svg>
               {:else}

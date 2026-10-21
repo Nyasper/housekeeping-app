@@ -231,3 +231,36 @@ export interface AbsencesByMonthRow {
   type: AbsenceType;
   days: number;
 }
+
+export interface DailySheetRow {
+  service_id: number;
+  place_id: number;
+  place_name: string;
+  place_location: string | null;
+  service_type: ServiceType;
+  status: ServiceStatus;
+  start_time: string | null;
+  end_time: string | null;
+  duration_minutes: number | null;
+  staff_names: string[];
+  incidents_count: number;
+  open_incidents_count: number;
+  incidents_summary: string[];
+  notes: string | null;
+}
+
+export type ExportKind =
+  | 'daily_sheet'
+  | 'services_by_staff'
+  | 'average_times'
+  | 'absences_by_month';
+
+export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
+
+export interface ExportFilters {
+  date?: string | null;
+  from?: string | null;
+  to?: string | null;
+  month?: string | null;
+}
+
