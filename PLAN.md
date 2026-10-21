@@ -862,7 +862,7 @@ Todos en inglés, formato `{domain}_{action}`:
 ## 8. Roadmap por fases
 
 - [x] **Fase 0 — Fundación.** Dependencias Rust y JS, `db.rs` (connect, PRAGMAs, `open_with_recovery`), `state.rs`, `error.rs`, migración inicial, `settings`, plugins/capabilities/single-instance, `assetProtocol`, tokens CSS + arranque de tema, `app.html` en español, `labels.ts`/`errors.ts`. **Commit inicial.** Tests de arranque + migración + settings.
-- [ ] **Fase 1 — Personal.** CRUD + baja/reactivación, roles, `gender`, zafral + temporada, descansos, ausencias, apartamentos principales, foto + avatares. Tests.
+- [x] **Fase 1 — Personal.** CRUD + baja/reactivación, roles, `gender`, zafral + temporada, descansos, ausencias, apartamentos principales, foto + avatares. Tests.
 - [ ] **Fase 2 — Lugares.** CRUD + baja/reactivación, estados (incl. `cancelled`), fechas opcionales, tarea recomendada. Tests.
 - [ ] **Fase 3 — Servicios.** CRUD con personal obligatorio, transiciones, disponibilidad, asignación asistida. Tests.
 - [ ] **Fase 4 — Tablero diario.** Pantalla principal, selector de fecha, pendientes sugeridos, personal, incidencias, toggle de tema y **UX pulida** (estados, atajos, feedback, accesibilidad).

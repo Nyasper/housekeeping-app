@@ -57,6 +57,7 @@ export interface Staff {
   updated_at: string;
   main_places: PlaceSummary[];
   rest_days: number[];
+  warning?: string | null;
 }
 
 export interface StaffInput {
@@ -72,6 +73,8 @@ export interface StaffInput {
   season_start_date: string | null;
   season_end_date: string | null;
   notes: string | null;
+  photo_source_path?: string | null;
+  remove_photo?: boolean;
 }
 
 export interface PlaceSummary {

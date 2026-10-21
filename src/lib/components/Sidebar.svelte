@@ -5,6 +5,7 @@
 
   const links = [
     { href: '/', label: 'Tablero', icon: 'board' },
+    { href: '/staff', label: 'Personal', icon: 'staff' },
     { href: '/settings', label: 'Ajustes', icon: 'settings' }
   ] as const;
 
@@ -44,6 +45,16 @@
                   <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.7" />
                   <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.7" />
                   <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" stroke="currentColor" stroke-width="1.7" />
+                </svg>
+              {:else if link.icon === 'staff'}
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="9.5" cy="8" r="3.2" stroke="currentColor" stroke-width="1.7" />
+                  <path
+                    d="M4 19c1.2-3.4 3.5-5 5.5-5s4.3 1.6 5.5 5M15.5 6.5a2.8 2.8 0 0 1 0 5.2M17 14.5c1.5.7 2.6 2 3.2 4.5"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
                 </svg>
               {:else}
                 <svg viewBox="0 0 24 24" fill="none">

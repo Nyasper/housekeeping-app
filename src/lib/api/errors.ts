@@ -22,6 +22,8 @@ const FALLBACK_MESSAGE = 'Ocurrió un error inesperado. Volvé a intentarlo.';
 
 const codeMessages: Record<string, string> = {
   app_data_dir: 'No se pudo acceder a la carpeta de datos de la aplicación.',
+  blocked: 'La operación está bloqueada por una regla de la aplicación.',
+  constraint: 'Los datos no cumplen una regla de la base de datos.',
   database: 'No se pudo completar la operación en la base de datos.',
   database_open: 'No se pudo abrir la base de datos de la aplicación.',
   duplicate: 'Ya existe un registro con esos datos.',

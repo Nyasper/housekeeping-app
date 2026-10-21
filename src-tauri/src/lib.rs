@@ -1,8 +1,11 @@
 mod db;
+pub mod domain;
 mod error;
 mod settings;
 mod state;
+pub mod util;
 
+use domain::staff::commands as staff_commands;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -37,6 +40,20 @@ pub fn run() {
             settings::settings_get,
             settings::settings_update,
             state::take_startup_notice,
+            staff_commands::staff_list,
+            staff_commands::staff_get,
+            staff_commands::staff_create,
+            staff_commands::staff_update,
+            staff_commands::staff_deactivate,
+            staff_commands::staff_reactivate,
+            staff_commands::staff_available_apartments,
+            staff_commands::staff_places_set,
+            staff_commands::staff_rest_days_get,
+            staff_commands::staff_rest_days_set,
+            staff_commands::staff_absences_list,
+            staff_commands::staff_absences_create,
+            staff_commands::staff_absences_update,
+            staff_commands::staff_absences_delete,
         ])
         .run(tauri::generate_context!())
         .expect("No se pudo iniciar la aplicación");

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Avatar predeterminado hombre">
+  <rect width="120" height="120" rx="60" fill="#d9ede7"/>
+  <circle cx="60" cy="44" r="21" fill="#14665b"/>
+  <path d="M24 106c4.5-21 18-32 36-32s31.5 11 36 32" fill="#14665b"/>
+  <path d="M44 37c4-7 11-11 18-11 8 0 14 4 17 10-7-2-13-2-19 0-6 2-11 2-16 1Z" fill="#0d4d45"/>
+</svg>

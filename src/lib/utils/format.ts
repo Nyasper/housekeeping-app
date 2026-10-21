@@ -47,6 +47,22 @@ export function parseIsoDate(value: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+export function todayIso(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Returns ISO weekday index (`0 = Monday … 6 = Sunday`) for `YYYY-MM-DD`. */
+export function weekdayFromIsoDate(value: string): number | null {
+  const date = parseIsoDate(value);
+  if (!date) {
+    return null;
+  }
+  return (date.getDay() + 6) % 7;
+}
+
 export function formatLongDate(value: Date | string = new Date(), fallback = 'Sin datos'): string {
   const date = typeof value === 'string' ? parseIsoDate(value) : value;
   if (!date || Number.isNaN(date.getTime())) {
