@@ -54,6 +54,35 @@ export function todayIso(now: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function nowTimeIso(now: Date = new Date()): string {
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+export function shiftIsoDate(value: string, deltaDays: number): string {
+  const parsed = parseIsoDate(value) ?? new Date();
+  parsed.setDate(parsed.getDate() + deltaDays);
+  return todayIso(parsed);
+}
+
+export function durationMinutesBetween(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined
+): number | null {
+  if (!startTime || !endTime) {
+    return null;
+  }
+  const s = /^(\d{2}):(\d{2})$/.exec(startTime);
+  const e = /^(\d{2}):(\d{2})$/.exec(endTime);
+  if (!s || !e) {
+    return null;
+  }
+  const startMinutes = Number(s[1]) * 60 + Number(s[2]);
+  const endMinutes = Number(e[1]) * 60 + Number(e[2]);
+  return endMinutes > startMinutes ? endMinutes - startMinutes : null;
+}
+
 /** Returns ISO weekday index (`0 = Monday … 6 = Sunday`) for `YYYY-MM-DD`. */
 export function weekdayFromIsoDate(value: string): number | null {
   const date = parseIsoDate(value);

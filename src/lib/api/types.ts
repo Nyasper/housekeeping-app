@@ -131,6 +131,7 @@ export interface ServiceStaff {
   photo_url: string | null;
   gender: Gender;
   is_lead: boolean;
+  is_active?: boolean;
 }
 
 export interface CleaningService {
@@ -146,6 +147,7 @@ export interface CleaningService {
   created_at: string;
   updated_at: string;
   staff: ServiceStaff[];
+  warning?: string | null;
 }
 
 export interface CleaningServiceInput {

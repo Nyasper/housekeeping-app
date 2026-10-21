@@ -23,12 +23,12 @@
 
 ## 2. Current state
 
-- Tauri v2 + SvelteKit 3 project migrated. **Phase 0 (foundation) is complete** on the `feature` branch.
-- **MVP not implemented yet**; next step is **Phase 1 — Personal** (`PLAN.md` §8).
+- Tauri v2 + SvelteKit 3 project migrated. **Phases 0, 1, 2, and 3 are complete** on the `feature` branch.
+- **MVP in progress**; next step is **Phase 4 — Tablero diario** (`PLAN.md` §8).
 - `MIGRATION_TASKS.md` was deleted: the SvelteKit 3 migration is closed.
-- Repository initialized with `1dc2a51 initial_setup`; Phase 0 is committed separately.
-- Current backend: `db.rs`, `state.rs`, `error.rs`, `settings.rs`, migration `0001_initial.sql`; commands `settings_get`, `settings_update`, `take_startup_notice`.
-- Current frontend: AppShell/Sidebar with light/dark theme, daily-board placeholder, Ajustes form backed by `settingsService`; `labels.ts`, `errors.ts`, `types.ts`, `format.ts` and design tokens in place.
+- Repository initialized with `1dc2a51 initial_setup`; Phases 0, 1, 2, and 3 are committed separately.
+- Current backend: `db.rs`, `state.rs`, `error.rs`, `settings.rs`, `util/{dates,files,availability}.rs`, `domain/{staff,places,cleaning}`, migration `0001_initial.sql`; commands for settings, startup notice, staff CRUD/absences/rest days/places, places CRUD/recommendations, and cleaning services CRUD/status/assisted assignment.
+- Current frontend: AppShell/Sidebar with light/dark theme, daily-board placeholder, Personal (`/staff`), Lugares (`/places`), Servicios (`/cleaning`), and Ajustes (`/settings`); `labels.ts`, `errors.ts`, `types.ts`, `format.ts` and design tokens in place.
 - Data lives in `app_data_dir()/housekeeping.db` with photos under `app_data_dir()/photos/`.
 
 ---

@@ -1,7 +1,7 @@
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveTime};
 
 use crate::settings::AppSettings;
-use crate::util::dates::{is_date_within, parse_date, weekday_index};
+use crate::util::dates::{is_date_within, parse_date, parse_time, weekday_index};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlaceTaskRecommendation {
@@ -119,6 +119,120 @@ pub fn is_staff_available_on(
         return false;
     }
     true
+}
+
+/// Checks if two time intervals `[start_a, end_a]` and `[start_b, end_b]` (`HH:MM`) overlap.
+pub fn times_overlap(start_a: &str, end_a: &str, start_b: &str, end_b: &str) -> bool {
+    let (Ok(sa), Ok(ea), Ok(sb), Ok(eb)) = (
+        parse_time(start_a, "inicio"),
+        parse_time(end_a, "fin"),
+        parse_time(start_b, "inicio"),
+        parse_time(end_b, "fin"),
+    ) else {
+        return false;
+    };
+    let a_start: NaiveTime = sa;
+    let a_end: NaiveTime = ea;
+    let b_start: NaiveTime = sb;
+    let b_end: NaiveTime = eb;
+    a_start < b_end && a_end > b_start
+}
+
+/// Returns `true` when `staff_role` is compatible with `service_type` according to `PLAN.md` §3.3.
+pub fn is_role_compatible(staff_role: &str, service_type: &str) -> bool {
+    match service_type {
+        "glass" => staff_role == "window_cleaner",
+        "daily_cleaning" | "deep_cleaning" | "touch_up" => {
+            staff_role == "maid" || staff_role == "common_areas"
+        }
+        _ => false,
+    }
+}
+
+pub fn role_label_es(role: &str) -> &'static str {
+    match role {
+        "maid" => "Mucama",
+        "window_cleaner" => "Vidriero",
+        "common_areas" => "Áreas comunes",
+        _ => "Personal",
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CandidateEvalInput {
+    pub staff_id: i64,
+    pub role: String,
+    pub is_main_place: bool,
+    pub recent_service_count: i64,
+    pub same_day_service_count: usize,
+    pub has_time_overlap: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RankedCandidate {
+    pub staff_id: i64,
+    pub reasons: Vec<String>,
+}
+
+/// Filters and ranks already-available candidates according to `PLAN.md` §3.4:
+/// 1. Excludes candidates with a confirmed time overlap on the same date.
+/// 2. Ranks by: role compatibility -> main apartment -> fewer recent services -> `staff_id ASC`.
+pub fn rank_candidates(
+    candidates: Vec<CandidateEvalInput>,
+    service_type: &str,
+    limit: usize,
+) -> Vec<RankedCandidate> {
+    let mut eligible: Vec<(CandidateEvalInput, bool)> = candidates
+        .into_iter()
+        .filter(|c| !c.has_time_overlap)
+        .map(|c| {
+            let compatible = is_role_compatible(&c.role, service_type);
+            (c, compatible)
+        })
+        .collect();
+
+    eligible.sort_by(|(a, compat_a), (b, compat_b)| {
+        compat_b
+            .cmp(compat_a)
+            .then_with(|| b.is_main_place.cmp(&a.is_main_place))
+            .then_with(|| a.recent_service_count.cmp(&b.recent_service_count))
+            .then_with(|| a.same_day_service_count.cmp(&b.same_day_service_count))
+            .then_with(|| a.staff_id.cmp(&b.staff_id))
+    });
+
+    eligible
+        .into_iter()
+        .take(limit)
+        .map(|(c, compatible)| {
+            let mut reasons = Vec::new();
+            if compatible {
+                reasons.push(format!("Rol compatible ({})", role_label_es(&c.role)));
+            } else {
+                reasons.push(format!("Otro rol ({})", role_label_es(&c.role)));
+            }
+            if c.is_main_place {
+                reasons.push("Apartamento principal".to_string());
+            }
+            if c.recent_service_count == 0 {
+                reasons.push("Sin servicios recientes (rotación)".to_string());
+            } else {
+                reasons.push(format!(
+                    "Carga reciente: {} servicio(s)",
+                    c.recent_service_count
+                ));
+            }
+            if c.same_day_service_count > 0 {
+                reasons.push(format!(
+                    "Advertencia: ya tiene {} servicio(s) ese día",
+                    c.same_day_service_count
+                ));
+            }
+            RankedCandidate {
+                staff_id: c.staff_id,
+                reasons,
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -293,5 +407,63 @@ mod tests {
             rec_override.recommended_service_type.as_deref(),
             Some("daily_cleaning")
         );
+    }
+
+    #[test]
+    fn ranks_candidates_by_role_main_place_rotation_and_id() {
+        let candidates = vec![
+            CandidateEvalInput {
+                staff_id: 1,
+                role: "window_cleaner".to_string(),
+                is_main_place: true,
+                recent_service_count: 0,
+                same_day_service_count: 0,
+                has_time_overlap: false,
+            },
+            CandidateEvalInput {
+                staff_id: 2,
+                role: "maid".to_string(),
+                is_main_place: false,
+                recent_service_count: 1,
+                same_day_service_count: 0,
+                has_time_overlap: false,
+            },
+            CandidateEvalInput {
+                staff_id: 3,
+                role: "maid".to_string(),
+                is_main_place: true,
+                recent_service_count: 5,
+                same_day_service_count: 1,
+                has_time_overlap: false,
+            },
+            CandidateEvalInput {
+                staff_id: 4,
+                role: "maid".to_string(),
+                is_main_place: false,
+                recent_service_count: 3,
+                same_day_service_count: 0,
+                has_time_overlap: false,
+            },
+            CandidateEvalInput {
+                staff_id: 5,
+                role: "maid".to_string(),
+                is_main_place: true,
+                recent_service_count: 0,
+                same_day_service_count: 1,
+                has_time_overlap: true, // excluded due to overlap
+            },
+        ];
+
+        let ranked = rank_candidates(candidates, "daily_cleaning", 10);
+        let ids: Vec<i64> = ranked.iter().map(|r| r.staff_id).collect();
+        // 3 (maid + main place) -> 2 (maid + fewer recent) -> 4 (maid + more recent) -> 1 (window_cleaner)
+        assert_eq!(ids, vec![3, 2, 4, 1]);
+        assert!(
+            ranked[0]
+                .reasons
+                .iter()
+                .any(|r| r.contains("Apartamento principal"))
+        );
+        assert!(ranked[0].reasons.iter().any(|r| r.contains("Advertencia")));
     }
 }

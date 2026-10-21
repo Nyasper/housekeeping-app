@@ -864,7 +864,7 @@ Todos en inglés, formato `{domain}_{action}`:
 - [x] **Fase 0 — Fundación.** Dependencias Rust y JS, `db.rs` (connect, PRAGMAs, `open_with_recovery`), `state.rs`, `error.rs`, migración inicial, `settings`, plugins/capabilities/single-instance, `assetProtocol`, tokens CSS + arranque de tema, `app.html` en español, `labels.ts`/`errors.ts`. **Commit inicial.** Tests de arranque + migración + settings.
 - [x] **Fase 1 — Personal.** CRUD + baja/reactivación, roles, `gender`, zafral + temporada, descansos, ausencias, apartamentos principales, foto + avatares. Tests.
 - [x] **Fase 2 — Lugares.** CRUD + baja/reactivación, estados (incl. `cancelled`), fechas opcionales, tarea recomendada. Tests.
-- [ ] **Fase 3 — Servicios.** CRUD con personal obligatorio, transiciones, disponibilidad, asignación asistida. Tests.
+- [x] **Fase 3 — Servicios.** CRUD con personal obligatorio, transiciones, disponibilidad, asignación asistida. Tests.
 - [ ] **Fase 4 — Tablero diario.** Pantalla principal, selector de fecha, pendientes sugeridos, personal, incidencias, toggle de tema y **UX pulida** (estados, atajos, feedback, accesibilidad).
 - [ ] **Fase 5 — Incidencias + Reportes.** CRUD incidencias; reportes (servicios por persona, tiempos promedio, ausencias por mes).
 - [ ] **Fase 6 — Exportación + Backup/restore + Ajustes.** CSV/XLSX/PDF en Rust; backup ZIP; restore con swap; pantalla de configuración global con `settingsService`.
