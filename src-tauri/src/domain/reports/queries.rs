@@ -55,8 +55,9 @@ impl ExportCell {
         match self {
             Self::Text(value) => value.clone(),
             Self::Int(value) => value.to_string(),
-            Self::Float1(value) => format!("{value:.1}"),
-            Self::Float2(value) => format!("{value:.2}"),
+            // Excel with Spanish regional settings expects a comma decimal separator.
+            Self::Float1(value) => format!("{value:.1}").replace('.', ","),
+            Self::Float2(value) => format!("{value:.2}").replace('.', ","),
         }
     }
 
@@ -1099,6 +1100,17 @@ mod tests {
     }
 
     #[test]
+    fn csv_cells_use_semicolon_friendly_decimal_separator() {
+        assert_eq!(ExportCell::Float1(12.5).to_csv_string(), "12,5");
+        assert_eq!(ExportCell::Float2(3.25).to_csv_string(), "3,25");
+        assert_eq!(ExportCell::Int(7).to_csv_string(), "7");
+        assert_eq!(
+            ExportCell::Text("Limpieza".to_string()).to_csv_string(),
+            "Limpieza"
+        );
+    }
+
+    #[test]
     fn services_by_staff_and_average_times_exclude_cancelled_and_compute_metrics() {
         tauri::async_runtime::block_on(async {
             let pool = test_pool().await;
@@ -1451,6 +1463,17 @@ mod tests {
                 assert!(csv_bytes.starts_with(&[0xEF, 0xBB, 0xBF]));
                 let csv_text = String::from_utf8(csv_bytes[3..].to_vec()).expect("utf8 csv");
                 assert!(!csv_text.lines().next().unwrap_or_default().is_empty());
+
+                let mut reader = csv::ReaderBuilder::new()
+                    .delimiter(b';')
+                    .from_reader(csv_text.as_bytes());
+                let headers = reader.headers().expect("csv headers");
+                let header_count = headers.len();
+                assert!(header_count > 1);
+                if let Some(record) = reader.records().next() {
+                    let record = record.expect("csv record");
+                    assert_eq!(record.len(), header_count);
+                }
 
                 crate::domain::reports::export_xlsx::export_xlsx(
                     &pool,

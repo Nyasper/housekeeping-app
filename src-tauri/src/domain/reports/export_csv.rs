@@ -12,6 +12,8 @@ use crate::error::CommandError;
 const UTF8_BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 
 /// Exports the requested report as a tabular UTF-8 CSV file with a BOM for Excel.
+/// Uses `;` as the field delimiter and comma decimals so Excel with Spanish
+/// regional settings opens the file correctly.
 /// Writes to a temporary file first and atomically renames to `dest_path`.
 pub async fn export_csv(
     pool: &SqlitePool,
@@ -39,7 +41,7 @@ pub async fn export_csv(
         ));
     }
 
-    let mut writer = csv::Writer::from_writer(file);
+    let mut writer = csv::WriterBuilder::new().delimiter(b';').from_writer(file);
 
     let headers: Vec<&str> = dataset.columns.iter().map(|col| col.header).collect();
     if let Err(error) = writer.write_record(&headers) {

@@ -38,7 +38,7 @@ commit por punto después de correr los checks correspondientes.
   Archivo: `src-tauri/src/domain/cleaning/service.rs` (+ opciones del
   `ServiceForm`).
 
-- [ ] **6. CSV poco compatible con Excel en es-UY.**
+- [x] **6. CSV poco compatible con Excel en es-UY.**
   Usa coma como delimitador y punto decimal; Excel en español espera `;` y coma
   decimal. `PLAN.md:273` pide UTF-8 con BOM para Excel.
   Archivos: `export_csv.rs`, `queries.rs` (`to_csv_string`).
