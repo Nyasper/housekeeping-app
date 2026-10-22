@@ -169,7 +169,7 @@ fn validate_status_transition(
     let allowed = match current_status {
         "planned" => matches!(next_status, "in_progress" | "completed" | "cancelled"),
         "in_progress" => matches!(next_status, "completed" | "cancelled" | "planned"),
-        "completed" => confirm_reopen,
+        "completed" => matches!(next_status, "planned" | "in_progress"),
         "cancelled" => next_status == "planned" && confirm_reopen,
         _ => false,
     };
@@ -811,6 +811,13 @@ mod tests {
             .await
             .expect("completed");
             assert_eq!(completed.status, "completed");
+
+            // Cancelling a completed service is not allowed, even with confirmation
+            let cancel_completed =
+                set_service_status(&pool, None, service.id, "cancelled", None, None, true)
+                    .await
+                    .expect_err("completed cannot be cancelled");
+            assert_eq!(cancel_completed.code, "validation");
 
             // Reopening completed without confirmation is blocked
             let reopen_blocked =

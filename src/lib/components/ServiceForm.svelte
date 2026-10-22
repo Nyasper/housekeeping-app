@@ -92,6 +92,9 @@
 
   const serviceStatusOptions = $derived.by(() => {
     const options = toOptions(serviceStatusLabels);
+    if (isCompletedService) {
+      return options.filter((option) => option.value !== 'cancelled');
+    }
     if (isCancelledService) {
       return options.filter(
         (option) => option.value === 'cancelled' || option.value === 'planned'

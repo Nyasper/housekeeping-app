@@ -32,7 +32,7 @@ commit por punto después de correr los checks correspondientes.
   cuando faltan horas.
   Archivo: `src-tauri/src/domain/cleaning/service.rs`.
 
-- [ ] **5. `completed → cancelled` permitido con confirmación.**
+- [x] **5. `completed → cancelled` permitido con confirmación.**
   `completed` es terminal en `PLAN.md:212-213`; solo debería reabrirse a
   `planned`/`in_progress`.
   Archivo: `src-tauri/src/domain/cleaning/service.rs` (+ opciones del
