@@ -5,7 +5,7 @@ commit por punto después de correr los checks correspondientes.
 
 ## Alta
 
-- [ ] **1. Fecha de referencia obsoleta en Lugares y Servicios.**
+- [x] **1. Fecha de referencia obsoleta en Lugares y Servicios.**
   `placesService.referenceDate` persiste la última fecha del tablero y `load()`
   sin fecha la reutiliza. Lugares muestra “Tarea recomendada hoy” con datos de
   otra fecha; Servicios no recarga lugares al cambiar de día y usa una

@@ -19,7 +19,7 @@
   import PlaceForm from '#lib/components/PlaceForm.svelte';
   import Toast from '#lib/components/Toast.svelte';
   import { placesService } from '#lib/services/placesService.svelte.js';
-  import { formatDate } from '#lib/utils/format.js';
+  import { formatDate, todayIso } from '#lib/utils/format.js';
 
   const typeOptions = toOptions(placeTypeLabels);
   const statusOptions = toOptions(placeStatusLabels);
@@ -50,7 +50,7 @@
   }
 
   onMount(() => {
-    void placesService.load();
+    void placesService.load(todayIso());
   });
 
   const filteredPlaces = $derived.by(() => {
@@ -255,7 +255,7 @@
 {#if placesService.error && !showForm}
   <section class="panel error-banner" role="alert">
     <p>{placesService.error}</p>
-    <button type="button" class="button button-secondary" onclick={() => placesService.load()}>
+    <button type="button" class="button button-secondary" onclick={() => placesService.load(todayIso())}>
       Reintentar
     </button>
   </section>

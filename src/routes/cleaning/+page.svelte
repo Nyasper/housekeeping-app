@@ -59,12 +59,15 @@
     }, 150);
   }
 
-  async function loadAllForSelectedDate(): Promise<void> {
+  async function loadSelectedDate(): Promise<void> {
     await Promise.all([
       cleaningService.loadByDate(dateService.selectedDate),
-      placesService.load(),
-      staffService.load()
+      placesService.load(dateService.selectedDate)
     ]);
+  }
+
+  async function loadAllForSelectedDate(): Promise<void> {
+    await Promise.all([loadSelectedDate(), staffService.load()]);
   }
 
   onMount(() => {
@@ -73,22 +76,22 @@
 
   async function changeDate(nextDate: string): Promise<void> {
     dateService.setDate(nextDate);
-    await cleaningService.loadByDate(dateService.selectedDate);
+    await loadSelectedDate();
   }
 
   async function goPrevDay(): Promise<void> {
     dateService.previousDay();
-    await cleaningService.loadByDate(dateService.selectedDate);
+    await loadSelectedDate();
   }
 
   async function goNextDay(): Promise<void> {
     dateService.nextDay();
-    await cleaningService.loadByDate(dateService.selectedDate);
+    await loadSelectedDate();
   }
 
   async function goToday(): Promise<void> {
     dateService.goToToday();
-    await cleaningService.loadByDate(dateService.selectedDate);
+    await loadSelectedDate();
   }
 
   const activeStaff = $derived(staffService.items.filter((m) => m.is_active));
