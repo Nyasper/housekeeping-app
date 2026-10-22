@@ -724,9 +724,21 @@ pub async fn load_export_dataset(
                 })?;
 
             let rows = daily_sheet(pool, date).await?;
-            let total_services = rows.len() as i64;
-            let completed_count = rows.iter().filter(|r| r.status == "completed").count() as i64;
-            let total_minutes: i64 = rows.iter().filter_map(|r| r.duration_minutes).sum();
+            let (total_services, completed_count, total_minutes) = {
+                let active_rows: Vec<&DailySheetRow> = rows
+                    .iter()
+                    .filter(|row| row.status != "cancelled")
+                    .collect();
+                let completed_count = active_rows
+                    .iter()
+                    .filter(|row| row.status == "completed")
+                    .count() as i64;
+                let total_minutes: i64 = active_rows
+                    .iter()
+                    .filter_map(|row| row.duration_minutes)
+                    .sum();
+                (active_rows.len() as i64, completed_count, total_minutes)
+            };
             let open_incidents: i64 = rows.iter().map(|r| r.open_incidents_count).sum();
 
             let table_rows = rows
@@ -764,7 +776,7 @@ pub async fn load_export_dataset(
 
             let totals_row = vec![
                 ExportCell::Text("Total".to_string()),
-                ExportCell::Text(format!("{total_services} servicio(s)")),
+                ExportCell::Text(format!("{total_services} activo(s)")),
                 ExportCell::Text(format!("{completed_count} completado(s)")),
                 ExportCell::Text(String::new()),
                 ExportCell::Text(String::new()),
@@ -1108,6 +1120,102 @@ mod tests {
             ExportCell::Text("Limpieza".to_string()).to_csv_string(),
             "Limpieza"
         );
+    }
+
+    #[test]
+    fn daily_sheet_totals_exclude_cancelled_services() {
+        tauri::async_runtime::block_on(async {
+            let pool = test_pool().await;
+
+            let place = places_service::create_place(
+                &pool,
+                PlaceInput {
+                    name: "Apto 601".to_string(),
+                    place_type: "apartment".to_string(),
+                    status: None,
+                    location: None,
+                    check_in_date: None,
+                    check_out_date: None,
+                    notes: None,
+                },
+            )
+            .await
+            .expect("place");
+
+            let staff = staff_service::create_staff(
+                &pool,
+                None,
+                StaffInput {
+                    first_name: "Elena".to_string(),
+                    last_name: "Ríos".to_string(),
+                    birth_date: None,
+                    phone: None,
+                    national_id: "80022223".to_string(),
+                    address: None,
+                    gender: "female".to_string(),
+                    role: "maid".to_string(),
+                    is_seasonal: false,
+                    season_start_date: None,
+                    season_end_date: None,
+                    notes: None,
+                    photo_source_path: None,
+                    remove_photo: false,
+                },
+            )
+            .await
+            .expect("staff");
+
+            for (status, start, end) in [
+                ("cancelled", "09:00", "10:00"),
+                ("completed", "11:00", "12:30"),
+            ] {
+                cleaning_service::create_service(
+                    &pool,
+                    None,
+                    CleaningServiceInput {
+                        place_id: place.id,
+                        date: "2026-10-21".to_string(),
+                        start_time: Some(start.to_string()),
+                        end_time: Some(end.to_string()),
+                        service_type: "daily_cleaning".to_string(),
+                        status: status.to_string(),
+                        notes: None,
+                        staff: vec![ServiceStaffInput {
+                            staff_id: staff.id,
+                            is_lead: true,
+                        }],
+                    },
+                )
+                .await
+                .expect("service");
+            }
+
+            let dataset = load_export_dataset(
+                &pool,
+                ExportKind::DailySheet,
+                &ExportFilters {
+                    date: Some("2026-10-21".to_string()),
+                    from: None,
+                    to: None,
+                    month: None,
+                },
+            )
+            .await
+            .expect("daily sheet dataset");
+
+            assert_eq!(dataset.rows.len(), 2);
+            assert!(matches!(
+                &dataset.totals_row[1],
+                ExportCell::Text(value) if value.as_str() == "1 activo(s)"
+            ));
+            assert!(matches!(
+                &dataset.totals_row[2],
+                ExportCell::Text(value) if value.as_str() == "1 completado(s)"
+            ));
+            assert!(matches!(&dataset.totals_row[5], ExportCell::Int(90)));
+
+            pool.close().await;
+        });
     }
 
     #[test]

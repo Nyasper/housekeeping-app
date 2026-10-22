@@ -50,7 +50,7 @@ commit por punto después de correr los checks correspondientes.
 
 ## Baja / casos borde
 
-- [ ] **8. Totales de la planilla diaria exportada incluyen cancelados.**
+- [x] **8. Totales de la planilla diaria exportada incluyen cancelados.**
   La UI excluye cancelados de los KPIs; el export los cuenta y suma sus minutos.
   Archivo: `src-tauri/src/domain/reports/queries.rs`.
 
