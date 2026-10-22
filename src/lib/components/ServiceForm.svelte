@@ -60,7 +60,6 @@
   }: Props = $props();
 
   const serviceTypeOptions = toOptions(serviceTypeLabels);
-  const serviceStatusOptions = toOptions(serviceStatusLabels);
 
   const activePlaces = $derived(places.filter((p) => p.is_active || p.id === initial?.place_id));
 
@@ -89,6 +88,21 @@
 
   const selectedPlace = $derived(places.find((p) => p.id === placeId) ?? null);
   const isCompletedService = $derived(initial?.status === 'completed');
+  const isCancelledService = $derived(initial?.status === 'cancelled');
+
+  const serviceStatusOptions = $derived.by(() => {
+    const options = toOptions(serviceStatusLabels);
+    if (isCancelledService) {
+      return options.filter(
+        (option) => option.value === 'cancelled' || option.value === 'planned'
+      );
+    }
+    return options;
+  });
+
+  const showReopenBox = $derived(
+    isCompletedService || (isCancelledService && status !== 'cancelled')
+  );
 
   const placeError = $derived(
     submitted && !placeId ? 'Seleccioná el apartamento o área común.' : null
@@ -127,8 +141,10 @@
   });
 
   const reopenError = $derived(
-    submitted && isCompletedService && !confirmReopen
-      ? 'Confirmá que querés modificar o reabrir este servicio completado.'
+    submitted && showReopenBox && !confirmReopen
+      ? isCancelledService
+        ? 'Confirmá que querés reabrir este servicio cancelado.'
+        : 'Confirmá que querés modificar o reabrir este servicio completado.'
       : null
   );
 
@@ -304,12 +320,16 @@
     ></textarea>
   </FormField>
 
-  {#if isCompletedService}
+  {#if showReopenBox}
     <div class="reopen-box">
       <label class="checkbox-row">
         <input type="checkbox" bind:checked={confirmReopen} disabled={busy} />
         <span>
-          Confirmo que quiero modificar o reabrir este servicio que ya figura como completado.
+          {#if isCancelledService}
+            Confirmo que quiero reabrir este servicio que figura como cancelado.
+          {:else}
+            Confirmo que quiero modificar o reabrir este servicio que ya figura como completado.
+          {/if}
         </span>
       </label>
       {#if reopenError}

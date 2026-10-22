@@ -19,7 +19,7 @@ commit por punto después de correr los checks correspondientes.
   Archivos: `AvailabilityList.svelte`, `ServiceForm.svelte`, `routes/+page.svelte`,
   `routes/cleaning/+page.svelte`.
 
-- [ ] **3. No se puede reabrir un servicio cancelado desde la UI.**
+- [x] **3. No se puede reabrir un servicio cancelado desde la UI.**
   El backend exige `confirm_reopen` para `cancelled → planned`, pero el checkbox
   solo se muestra para servicios completados.
   Archivos: `ServiceForm.svelte`.
