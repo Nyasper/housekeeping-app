@@ -26,7 +26,7 @@ commit por punto después de correr los checks correspondientes.
 
 ## Media
 
-- [ ] **4. Aviso falso de doble asignación.**
+- [x] **4. Aviso falso de doble asignación.**
   Se advierte “ya tiene N servicio(s) ese día” aunque las horas estén cargadas y
   no se solapen. `PLAN.md:243` pide avisar solo por solapamiento, o por mismo día
   cuando faltan horas.

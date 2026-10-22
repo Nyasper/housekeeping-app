@@ -215,15 +215,21 @@ async fn check_double_assignment_warnings(
         }
 
         let full_name = format!("{} {}", staff_row.first_name, staff_row.last_name);
+        let has_complete_times = start_time.is_some() && end_time.is_some();
         let mut overlapped = false;
-        if let (Some(st), Some(et)) = (start_time, end_time) {
-            for (_, other_st, other_et) in &others {
-                if let (Some(ost), Some(oet)) = (other_st.as_deref(), other_et.as_deref())
-                    && times_overlap(st, et, ost, oet)
-                {
-                    overlapped = true;
-                    break;
+        let mut other_without_times = false;
+
+        for (_, other_st, other_et) in &others {
+            match (other_st.as_deref(), other_et.as_deref()) {
+                (Some(ost), Some(oet)) => {
+                    if let (Some(st), Some(et)) = (start_time, end_time)
+                        && times_overlap(st, et, ost, oet)
+                    {
+                        overlapped = true;
+                        break;
+                    }
                 }
+                _ => other_without_times = true,
             }
         }
 
@@ -231,7 +237,7 @@ async fn check_double_assignment_warnings(
             warnings.push(format!(
                 "{full_name} tiene otro servicio con horario superpuesto ese día"
             ));
-        } else {
+        } else if !has_complete_times || other_without_times {
             warnings.push(format!(
                 "{full_name} ya tiene {} servicio(s) asignado(s) ese día",
                 others.len()
@@ -819,6 +825,97 @@ mod tests {
                     .await
                     .expect("reopen with confirmation");
             assert_eq!(reopened.status, "in_progress");
+
+            pool.close().await;
+        });
+    }
+
+    #[test]
+    fn double_assignment_warnings_only_for_overlaps_or_missing_times() {
+        tauri::async_runtime::block_on(async {
+            let pool = test_pool().await;
+
+            let apt = places_service::create_place(
+                &pool,
+                PlaceInput {
+                    name: "Apto 402".to_string(),
+                    place_type: "apartment".to_string(),
+                    status: None,
+                    location: None,
+                    check_in_date: None,
+                    check_out_date: None,
+                    notes: None,
+                },
+            )
+            .await
+            .expect("place");
+
+            let staff = staff_service::create_staff(
+                &pool,
+                None,
+                make_staff_input("Marta", "López", "50000003", "maid"),
+            )
+            .await
+            .expect("staff");
+
+            let make_input = |start: Option<&str>, end: Option<&str>| CleaningServiceInput {
+                place_id: apt.id,
+                date: "2026-10-21".to_string(),
+                start_time: start.map(ToString::to_string),
+                end_time: end.map(ToString::to_string),
+                service_type: "daily_cleaning".to_string(),
+                status: "planned".to_string(),
+                notes: None,
+                staff: vec![ServiceStaffInput {
+                    staff_id: staff.id,
+                    is_lead: true,
+                }],
+            };
+
+            let first = create_service(&pool, None, make_input(Some("09:00"), Some("10:00")))
+                .await
+                .expect("first service");
+            assert!(first.warning.is_none());
+
+            let non_overlapping =
+                create_service(&pool, None, make_input(Some("14:00"), Some("15:00")))
+                    .await
+                    .expect("non-overlapping service");
+            assert!(non_overlapping.warning.is_none());
+
+            let overlapping = create_service(&pool, None, make_input(Some("09:30"), Some("10:30")))
+                .await
+                .expect("overlapping service");
+            assert!(
+                overlapping
+                    .warning
+                    .as_deref()
+                    .unwrap_or_default()
+                    .contains("horario superpuesto")
+            );
+
+            let without_times = create_service(&pool, None, make_input(None, None))
+                .await
+                .expect("service without times");
+            assert!(
+                without_times
+                    .warning
+                    .as_deref()
+                    .unwrap_or_default()
+                    .contains("ya tiene")
+            );
+
+            let after_missing_times =
+                create_service(&pool, None, make_input(Some("16:00"), Some("17:00")))
+                    .await
+                    .expect("service after missing times");
+            assert!(
+                after_missing_times
+                    .warning
+                    .as_deref()
+                    .unwrap_or_default()
+                    .contains("ya tiene")
+            );
 
             pool.close().await;
         });

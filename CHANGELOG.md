@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Places and cleaning screens now reload date-aware recommendations for the selected date instead of reusing the last daily-board date.
 - Cleaning service forms now show inactive assigned staff so they can be removed or reassigned.
 - Cancelled services can now be reopened from the edit form with explicit confirmation.
+- Staff assignment warnings now only appear for overlapping services or when times are missing, instead of for every same-day assignment.
 - Invalid ISO dates such as `2026-02-30` are no longer rolled over into the next month.
 - Duration formatting no longer renders `60 min` for values close to one hour.
 - Time formatting and duration calculations now reject out-of-range hours and minutes.
