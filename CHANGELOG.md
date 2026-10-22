@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Invalid ISO dates such as `2026-02-30` are no longer rolled over into the next month.
+- Duration formatting no longer renders `60 min` for values close to one hour.
+- Time formatting and duration calculations now reject out-of-range hours and minutes.
+- `shiftIsoDate` keeps invalid input unchanged instead of silently jumping to today.
+
 ## [0.1.0] - 2026-10-22
 
 ### Added

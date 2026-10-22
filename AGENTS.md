@@ -222,7 +222,7 @@ static/
 ### 5.4 Quality
 
 - **Rust:** `cargo fmt` and `cargo clippy -- -D warnings`; tests with `cargo test`.
-- **Frontend:** `bun run check` (svelte-check); `prettier` + `prettier-plugin-svelte`; ESLint with `eslint-plugin-svelte` (or Biome).
+- **Frontend:** `bun run check` (svelte-check); `bun test` (Bun test runner) for functions and services; `prettier` + `prettier-plugin-svelte`; ESLint with `eslint-plugin-svelte` (or Biome).
 - **Scripts:** `check`, `lint`, `format`, `test` in `package.json`.
 - **Git:** automatic commit for each feature/big change with an English message; post-MVP `CHANGELOG.md` (section 9).
 
@@ -360,6 +360,7 @@ bun install
 bun run dev
 bun run build
 bun run check
+bun test
 bun run tauri dev
 
 # Backend

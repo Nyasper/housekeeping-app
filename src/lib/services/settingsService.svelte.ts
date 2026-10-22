@@ -7,7 +7,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   upcoming_occupancy_days: 2
 };
 
-class SettingsService {
+export class SettingsService {
   settings = $state<AppSettings>({ ...DEFAULT_SETTINGS });
   loading = $state(false);
   saving = $state(false);

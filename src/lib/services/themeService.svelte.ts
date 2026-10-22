@@ -2,7 +2,7 @@ export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'housekeeping-theme';
 
-class ThemeService {
+export class ThemeService {
   theme = $state<Theme>('light');
 
   #initialized = false;

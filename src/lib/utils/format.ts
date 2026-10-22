@@ -44,7 +44,30 @@ export function parseIsoDate(value: string): Date | null {
   const month = Number(match[2]) - 1;
   const day = Number(match[3]);
   const date = new Date(year, month, day);
-  return Number.isNaN(date.getTime()) ? null : date;
+  // `Date` rolls invalid values over (2026-02-30 becomes 2026-03-02), so the
+  // parsed components must survive the round trip.
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function parseTime(value: string): { hours: number; minutes: number } | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) {
+    return null;
+  }
+  return { hours, minutes };
 }
 
 export function todayIso(now: Date = new Date()): string {
@@ -79,7 +102,10 @@ export function nowTimeIso(now: Date = new Date()): string {
 }
 
 export function shiftIsoDate(value: string, deltaDays: number): string {
-  const parsed = parseIsoDate(value) ?? new Date();
+  const parsed = parseIsoDate(value);
+  if (!parsed) {
+    return value;
+  }
   parsed.setDate(parsed.getDate() + deltaDays);
   return todayIso(parsed);
 }
@@ -91,13 +117,13 @@ export function durationMinutesBetween(
   if (!startTime || !endTime) {
     return null;
   }
-  const s = /^(\d{2}):(\d{2})$/.exec(startTime);
-  const e = /^(\d{2}):(\d{2})$/.exec(endTime);
-  if (!s || !e) {
+  const start = parseTime(startTime);
+  const end = parseTime(endTime);
+  if (!start || !end) {
     return null;
   }
-  const startMinutes = Number(s[1]) * 60 + Number(s[2]);
-  const endMinutes = Number(e[1]) * 60 + Number(e[2]);
+  const startMinutes = start.hours * 60 + start.minutes;
+  const endMinutes = end.hours * 60 + end.minutes;
   return endMinutes > startMinutes ? endMinutes - startMinutes : null;
 }
 
@@ -135,11 +161,11 @@ export function formatTime(value: string | null | undefined, fallback = 'Sin dat
   if (!value) {
     return fallback;
   }
-  const match = /^(\d{2}):(\d{2})$/.exec(value);
-  if (!match) {
+  const time = parseTime(value);
+  if (!time) {
     return fallback;
   }
-  const date = new Date(2000, 0, 1, Number(match[1]), Number(match[2]));
+  const date = new Date(2000, 0, 1, time.hours, time.minutes);
   return timeFormatter.format(date);
 }
 
@@ -151,8 +177,10 @@ export function formatDurationMinutes(minutes: number): string {
   if (!Number.isFinite(minutes) || minutes < 0) {
     return 'Sin datos';
   }
-  const hours = Math.floor(minutes / 60);
-  const remaining = Math.round(minutes % 60);
+  // Round the total first so values like 59.6 become 1 h instead of 60 min.
+  const totalMinutes = Math.round(minutes);
+  const hours = Math.floor(totalMinutes / 60);
+  const remaining = totalMinutes % 60;
   if (hours === 0) {
     return `${formatNumber(remaining)} min`;
   }
