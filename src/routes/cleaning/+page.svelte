@@ -246,7 +246,22 @@
       toastMessage = cleaningService.error;
     }
   }
+
+  function handleWindowKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || cancellingService !== null) {
+      return;
+    }
+    if (completingService) {
+      completingService = null;
+      return;
+    }
+    if (showForm) {
+      closeForm();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Servicios · Gestión de Limpieza</title>
@@ -375,6 +390,15 @@
     </div>
   </div>
 </section>
+
+{#if cleaningService.error && !showForm && !completingService}
+  <section class="panel error-banner" role="alert">
+    <p>{cleaningService.error}</p>
+    <button type="button" class="button button-secondary" onclick={loadAllForSelectedDate}>
+      Reintentar
+    </button>
+  </section>
+{/if}
 
 {#if cleaningService.loading && cleaningService.items.length === 0}
   <section class="panel status-panel" role="status">
@@ -591,6 +615,18 @@
 
   .status-panel {
     padding: var(--space-6);
+  }
+
+  .error-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-5);
+    border-color: var(--color-danger);
+    background: var(--color-danger-soft);
   }
 
   .services-grid {

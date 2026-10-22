@@ -176,6 +176,15 @@ a {
 :focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;
+  scroll-margin-top: 5rem;
+  scroll-margin-bottom: 3rem;
+}
+
+input[type='checkbox'] {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 ::selection {

@@ -7,29 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-22
+
 ### Added
 
-- No changes yet.
-
-### Changed
-
-- No changes yet.
-
-### Deprecated
-
-- No changes yet.
-
-### Fixed
-
-- No changes yet.
-
-### Removed
-
-- No changes yet.
-
-### Security
-
-- No changes yet.
+- Local-first desktop foundation on Tauri v2 + Svelte 5 + SvelteKit 3 with SQLite WAL persistence, automatic startup recovery/quarantine notice, and single-instance window focus.
+- Staff management (`/staff`): CRUD with soft deactivation/reactivation, Uruguayan national ID validation, roles (`maid`, `window_cleaner`, `common_areas`), gender-based default avatars, local photo upload, seasonal contracts (`is_seasonal`, start/end dates), weekly rest days, absences (`medical_certificate`, `vacation`, `unplanned`) with overlap prevention, and primary apartment assignments (`staff_place`).
+- Places management (`/places`): CRUD for apartments and common areas, soft deactivation/reactivation, optional stay dates (`check_in_date`, `check_out_date`), manual status override including skipped turn (`cancelled`), automatic effective status calculation, and date-aware recommended cleaning task (`post_checkout`, `pre_checkin`, `daily_cleaning`, `touch_up`).
+- Cleaning services (`/cleaning`): daily service planning and tracking (`planned`, `in_progress`, `completed`, `cancelled`), mandatory staff assignment (`>= 1` member, at most one `is_lead`) enforced in service and SQLite triggers, assisted staff assignment ranking (availability, main apartment, role match, daily workload), duration validation on completion, and confirmation when reopening completed services.
+- Daily operational board (`/`): unified daily command center with date navigation, pending recommended apartment tasks with 1-click prefill into service creation, service status actions, staff availability overview, and daily open/resolved incidents.
+- Incidents tracking (`/incidents`): CRUD and status transitions (`open`, `resolved`) for damages, lost items, and supply shortages linked to cleaning services, optional photo evidence with native modal preview, and filters by status, type, date, and service.
+- Operational reports and exports (`/reports`): services and hours by staff member, average completion duration by service type, monthly absence days (split accurately across month boundaries), and daily operational sheet; native Rust exports to UTF-8 BOM CSV (`csv`), print-ready XLSX spreadsheets (`rust_xlsxwriter`), and paginated landscape A4 PDFs (`printpdf` with embedded `DejaVuSans` font).
+- Global settings and ZIP backup/restore (`/settings`): configurable recommendation windows (`recent_vacated_days`, `upcoming_occupancy_days`) via `settingsService`, atomic ZIP backup (`VACUUM INTO` database snapshot + `photos/` + `manifest.json`), and verified ZIP restore with SQLite integrity/foreign-key checks, safety backup rollback, and live connection pool swap.
+- Light and dark theme support with zero-FOUC initialization, `es-UY` Spanish interface and formatting, keyboard navigation, and WCAG 2.2 AA accessibility polish.
 
 <!--
 Post-MVP workflow:

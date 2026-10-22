@@ -258,7 +258,23 @@
       }
     }
   }
+
+  function handleWindowKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || deactivatingStaff !== null) {
+      return;
+    }
+    if (managingAbsencesFor) {
+      managingAbsencesFor = null;
+      staffService.error = null;
+      return;
+    }
+    if (showForm) {
+      closeForm();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Personal · Gestión de Limpieza</title>
@@ -437,6 +453,15 @@
   </div>
 </section>
 
+{#if staffService.error && !showForm && !managingAbsencesFor}
+  <section class="panel error-banner" role="alert">
+    <p>{staffService.error}</p>
+    <button type="button" class="button button-secondary" onclick={() => staffService.load()}>
+      Reintentar
+    </button>
+  </section>
+{/if}
+
 {#if staffService.loading && staffService.items.length === 0}
   <section class="panel status-panel" role="status">
     <p>Cargando personal…</p>
@@ -608,6 +633,18 @@
 
   .status-panel {
     padding: var(--space-6);
+  }
+
+  .error-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    margin-bottom: var(--space-5);
+    border-color: var(--color-danger);
+    background: var(--color-danger-soft);
   }
 
   .staff-grid {

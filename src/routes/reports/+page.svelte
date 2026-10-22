@@ -107,9 +107,47 @@
     ]);
   });
 
+  const tabOrder: ExportKind[] = [
+    'services_by_staff',
+    'average_times',
+    'absences_by_month',
+    'daily_sheet'
+  ];
+
+  const tabElementIds: Record<ExportKind, string> = {
+    services_by_staff: 'tab-services-by-staff',
+    average_times: 'tab-average-times',
+    absences_by_month: 'tab-absences-by-month',
+    daily_sheet: 'tab-daily-sheet'
+  };
+
   async function selectTab(tab: ExportKind): Promise<void> {
     activeTab = tab;
     await loadActiveTab();
+  }
+
+  function handleTabKeydown(event: KeyboardEvent): void {
+    const currentIndex = tabOrder.indexOf(activeTab);
+    if (currentIndex === -1) {
+      return;
+    }
+    let nextIndex = -1;
+    if (event.key === 'ArrowRight') {
+      nextIndex = (currentIndex + 1) % tabOrder.length;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + tabOrder.length) % tabOrder.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = tabOrder.length - 1;
+    }
+    if (nextIndex !== -1) {
+      event.preventDefault();
+      const nextTab = tabOrder[nextIndex];
+      void selectTab(nextTab);
+      const nextEl = document.getElementById(tabElementIds[nextTab]);
+      nextEl?.focus();
+    }
   }
 
   async function resetCurrentMonthRange(): Promise<void> {
@@ -173,8 +211,10 @@
     id="tab-services-by-staff"
     aria-controls="panel-services-by-staff"
     aria-selected={activeTab === 'services_by_staff'}
+    tabindex={activeTab === 'services_by_staff' ? 0 : -1}
     class={`tab-button ${activeTab === 'services_by_staff' ? 'is-active' : ''}`}
     onclick={() => selectTab('services_by_staff')}
+    onkeydown={handleTabKeydown}
   >
     Servicios por persona
   </button>
@@ -184,8 +224,10 @@
     id="tab-average-times"
     aria-controls="panel-average-times"
     aria-selected={activeTab === 'average_times'}
+    tabindex={activeTab === 'average_times' ? 0 : -1}
     class={`tab-button ${activeTab === 'average_times' ? 'is-active' : ''}`}
     onclick={() => selectTab('average_times')}
+    onkeydown={handleTabKeydown}
   >
     Tiempos promedio
   </button>
@@ -195,8 +237,10 @@
     id="tab-absences-by-month"
     aria-controls="panel-absences-by-month"
     aria-selected={activeTab === 'absences_by_month'}
+    tabindex={activeTab === 'absences_by_month' ? 0 : -1}
     class={`tab-button ${activeTab === 'absences_by_month' ? 'is-active' : ''}`}
     onclick={() => selectTab('absences_by_month')}
+    onkeydown={handleTabKeydown}
   >
     Ausencias por mes
   </button>
@@ -206,8 +250,10 @@
     id="tab-daily-sheet"
     aria-controls="panel-daily-sheet"
     aria-selected={activeTab === 'daily_sheet'}
+    tabindex={activeTab === 'daily_sheet' ? 0 : -1}
     class={`tab-button ${activeTab === 'daily_sheet' ? 'is-active' : ''}`}
     onclick={() => selectTab('daily_sheet')}
+    onkeydown={handleTabKeydown}
   >
     Planilla diaria
   </button>

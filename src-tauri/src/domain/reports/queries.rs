@@ -596,9 +596,9 @@ pub async fn daily_sheet(
 pub fn service_type_label_es(code: &str) -> &str {
     match code {
         "glass" => "Vidrios",
-        "daily_cleaning" => "Repaso",
+        "daily_cleaning" => "Limpieza diaria",
         "deep_cleaning" => "Limpieza general",
-        "touch_up" => "Retoque",
+        "touch_up" => "Repaso",
         _ => code,
     }
 }
@@ -615,7 +615,7 @@ pub fn service_status_label_es(code: &str) -> &str {
 
 pub fn absence_type_label_es(code: &str) -> &str {
     match code {
-        "medical_certificate" => "Certificado médico",
+        "medical_certificate" => "Certificación médica",
         "leave" => "Licencia",
         "absence" => "Falta",
         _ => code,

@@ -23,10 +23,10 @@
 
 ## 2. Current state
 
-- Tauri v2 + SvelteKit 3 project migrated. **Phases 0, 1, 2, 3, 4, 5, and 6 are complete** on the `feature` branch.
-- **MVP in progress**; next step is **Phase 7 — Pulido y release del MVP** (`PLAN.md` §8).
+- Tauri v2 + SvelteKit 3 project migrated. **Phases 0, 1, 2, 3, 4, 5, 6, and 7 are complete** on the `feature` branch.
+- **MVP `0.1.0` complete and released** (`PLAN.md` §8, `CHANGELOG.md`). Future work follows the post-MVP workflow (`CHANGELOG.md` under `[Unreleased]`).
 - `MIGRATION_TASKS.md` was deleted: the SvelteKit 3 migration is closed.
-- Repository initialized with `1dc2a51 initial_setup`; Phases 0, 1, 2, 3, 4, 5, and 6 are committed separately.
+- Repository initialized with `1dc2a51 initial_setup`; Phases 0 through 7 are committed separately.
 - Current backend: `db.rs`, `state.rs`, `error.rs`, `settings.rs`, `backup.rs`, `util/{dates,files,availability}.rs`, `domain/{staff,places,cleaning,incidents,reports}`, migration `0001_initial.sql`, embedded `assets/fonts/DejaVuSans.ttf`; commands for settings, startup notice, staff CRUD/absences/rest days/places, places CRUD/recommendations (date-aware), cleaning services CRUD/status/assisted assignment, incidents CRUD/status, reports queries (`services_by_staff`, `average_times`, `absences_by_month`, `daily_sheet`), exports (`export_csv`, `export_xlsx`, `export_pdf`), and ZIP backup/restore (`backup_create`, `backup_restore`).
 - Current frontend: AppShell/Sidebar with light/dark theme, Tablero diario (`/`, `DailyBoard.svelte`, `IncidentForm.svelte`), Personal (`/staff`), Lugares (`/places`), Servicios (`/cleaning`), Incidencias (`/incidents`), Reportes (`/reports` with CSV/XLSX/PDF export), and Ajustes (`/settings` with recommendation windows and ZIP backup/restore); `labels.ts`, `errors.ts`, `types.ts`, `format.ts` and design tokens in place.
 - Data lives in `app_data_dir()/housekeeping.db` with photos under `app_data_dir()/photos/`.

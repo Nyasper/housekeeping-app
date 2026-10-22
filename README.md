@@ -8,7 +8,15 @@ Aplicación de escritorio para gestionar el personal de limpieza y los servicios
 
 ## Estado
 
-**Fase 0 — Fundación completada.** El tablero y la gestión de personal, lugares, servicios, incidencias, reportes y respaldos se implementan en las fases siguientes. Ver `PLAN.md` §8.
+**MVP `0.1.0` completado (Fases 0 a 7).** Incluye:
+
+- **Tablero diario (`/`):** vista operativa por fecha con tareas recomendadas pendientes, servicios del día, disponibilidad del personal e incidencias abiertas/resueltas.
+- **Personal (`/staff`):** alta, edición, baja lógica y reactivación de mucamas, vidrieros y personal de áreas comunes; contratos permanentes o zafrales con temporada; descansos semanales, ausencias sin solapamientos, foto local, avatares por género y apartamentos principales.
+- **Lugares (`/places`):** apartamentos y áreas comunes con fechas opcionales de ingreso/egreso, estado calculado o manual (`cancelled` para omitir turno) y recomendación automática de tarea.
+- **Servicios de limpieza (`/cleaning`):** planificación y seguimiento (`planned`, `in_progress`, `completed`, `cancelled`), personal obligatorio (`>= 1` y responsable opcional) y sugerencia asistida de candidatos según disponibilidad, apartamento principal, rol y carga del día.
+- **Incidencias (`/incidents`):** registro y resolución de daños, objetos olvidados y faltantes de insumos asociados a un servicio, con evidencia fotográfica opcional.
+- **Reportes y exportación (`/reports`):** servicios y horas por persona, tiempos promedio por tipo de servicio, ausencias mensuales y planilla diaria, exportables a **CSV**, **XLSX** y **PDF** generados en Rust.
+- **Ajustes y respaldos (`/settings`):** configuración de ventanas de recomendación (`recent_vacated_days`, `upcoming_occupancy_days`) y respaldo/restauración en archivo **ZIP** (base de datos consistente con `VACUUM INTO` + fotos + manifiesto, validación de integridad y reemplazo en caliente).
 
 ## Stack
 

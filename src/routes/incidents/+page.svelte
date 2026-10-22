@@ -193,7 +193,31 @@
   }
 
   function handleWindowKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && previewIncident) {
+    if (event.key !== 'Escape') {
+      return;
+    }
+    if (previewIncident) {
+      previewIncident = null;
+      return;
+    }
+    if (showForm) {
+      closeForm();
+    }
+  }
+
+  function syncPhotoDialog(node: HTMLDialogElement) {
+    if (!node.open) {
+      node.showModal();
+    }
+  }
+
+  function handleDialogCancel(event: Event): void {
+    event.preventDefault();
+    previewIncident = null;
+  }
+
+  function handleDialogBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
       previewIncident = null;
     }
   }
@@ -447,35 +471,34 @@
 {#if previewIncident}
   {@const modalSrc = resolvePhotoSrc(previewIncident.photo_url)}
   {#if modalSrc}
-    <div
-      class="photo-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      class="photo-modal panel"
       aria-label={`Foto de incidencia en ${previewIncident.place_name}`}
+      oncancel={handleDialogCancel}
+      onclick={handleDialogBackdropClick}
+      {@attach syncPhotoDialog}
     >
-      <div class="photo-modal panel">
-        <div class="photo-modal-header">
-          <div>
-            <h2>{previewIncident.place_name} · {labelOf(incidentTypeLabels, previewIncident.type)}</h2>
-            <p>{previewIncident.description}</p>
-          </div>
-          <button
-            type="button"
-            class="button button-secondary button-sm"
-            onclick={() => (previewIncident = null)}
-          >
-            Cerrar
-          </button>
+      <div class="photo-modal-header">
+        <div>
+          <h2>{previewIncident.place_name} · {labelOf(incidentTypeLabels, previewIncident.type)}</h2>
+          <p>{previewIncident.description}</p>
         </div>
-        <div class="photo-modal-body">
-          <img
-            src={modalSrc}
-            alt={`Foto de incidencia en ${previewIncident.place_name}`}
-            class="photo-modal-img"
-          />
-        </div>
+        <button
+          type="button"
+          class="button button-secondary button-sm"
+          onclick={() => (previewIncident = null)}
+        >
+          Cerrar
+        </button>
       </div>
-    </div>
+      <div class="photo-modal-body">
+        <img
+          src={modalSrc}
+          alt={`Foto de incidencia en ${previewIncident.place_name}`}
+          class="photo-modal-img"
+        />
+      </div>
+    </dialog>
   {/if}
 {/if}
 
@@ -689,25 +712,23 @@
     font-size: var(--text-xs);
   }
 
-  .photo-modal-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-5);
-    background: rgba(14, 21, 19, 0.72);
-  }
-
   .photo-modal {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-    width: min(52rem, 100%);
+    width: min(52rem, calc(100vw - 2rem));
     max-height: 90vh;
     padding: var(--space-5);
+    margin: auto;
+    border: 1px solid var(--color-line);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-lg);
     overflow: auto;
+  }
+
+  .photo-modal::backdrop {
+    background: rgba(14, 21, 19, 0.72);
+    backdrop-filter: blur(2px);
   }
 
   .photo-modal-header {
