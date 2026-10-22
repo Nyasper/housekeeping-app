@@ -389,9 +389,15 @@ pub async fn update_service(
         input.staff.len(),
     )?;
 
-    let _place = places_repo::get_place_row(pool, input.place_id)
+    let place = places_repo::get_place_row(pool, input.place_id)
         .await?
         .ok_or_else(|| CommandError::new("not_found", "El lugar seleccionado no existe."))?;
+    if input.place_id != existing.place_id && place.is_active == 0 {
+        return Err(CommandError::new(
+            "validation",
+            "No se puede reasignar un servicio a un lugar desactivado.",
+        ));
+    }
 
     let warning = check_double_assignment_warnings(
         pool,
@@ -748,6 +754,47 @@ mod tests {
             .expect("create service");
             assert_eq!(service.staff.len(), 1);
             assert_eq!(service.staff[0].staff_id, s1.id);
+
+            // Moving a service to a deactivated place is rejected
+            let inactive_place = places_service::create_place(
+                &pool,
+                PlaceInput {
+                    name: "Apto 999".to_string(),
+                    place_type: "apartment".to_string(),
+                    status: None,
+                    location: None,
+                    check_in_date: None,
+                    check_out_date: None,
+                    notes: None,
+                },
+            )
+            .await
+            .expect("inactive place");
+            places_service::deactivate_place(&pool, inactive_place.id)
+                .await
+                .expect("deactivate place");
+            let move_to_inactive = update_service(
+                &pool,
+                None,
+                service.id,
+                CleaningServiceInput {
+                    place_id: inactive_place.id,
+                    date: "2026-10-21".to_string(),
+                    start_time: None,
+                    end_time: None,
+                    service_type: "daily_cleaning".to_string(),
+                    status: "planned".to_string(),
+                    notes: None,
+                    staff: vec![ServiceStaffInput {
+                        staff_id: s1.id,
+                        is_lead: true,
+                    }],
+                },
+                false,
+            )
+            .await
+            .expect_err("service cannot move to inactive place");
+            assert_eq!(move_to_inactive.code, "validation");
 
             // Replace sole staff member s1 with s2 (must not trip trg_service_staff_keep_last)
             let reassigned = set_service_staff(

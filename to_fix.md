@@ -61,7 +61,7 @@ commit por punto después de correr los checks correspondientes.
   `routes/places/+page.svelte`, `format.ts`, `types.ts`, `factories.ts`,
   `PLAN.md`.
 
-- [ ] **10. `update_service` permite cambiar a un lugar desactivado.**
+- [x] **10. `update_service` permite cambiar a un lugar desactivado.**
   `create_service` lo rechaza; `update_service` no. Mantener el lugar histórico
   inactivo pero rechazar el cambio a otro lugar inactivo.
   Archivo: `src-tauri/src/domain/cleaning/service.rs`.
