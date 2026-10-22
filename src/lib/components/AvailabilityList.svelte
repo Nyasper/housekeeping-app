@@ -9,7 +9,7 @@
 
   interface Props {
     suggestions: StaffSuggestion[];
-    allActiveStaff: Staff[];
+    allStaff: Staff[];
     selected: ServiceStaffInput[];
     loading?: boolean;
     disabled?: boolean;
@@ -18,7 +18,7 @@
 
   let {
     suggestions,
-    allActiveStaff,
+    allStaff,
     selected,
     loading = false,
     disabled = false,
@@ -31,7 +31,13 @@
   const suggestedIds = $derived(new Set(suggestions.map((item) => item.staff.id)));
 
   const extraActiveStaff = $derived(
-    allActiveStaff.filter((member) => !suggestedIds.has(member.id))
+    allStaff.filter((member) => member.is_active && !suggestedIds.has(member.id))
+  );
+
+  const selectedInactiveMembers = $derived(
+    selected
+      .map((item) => allStaff.find((member) => member.id === item.staff_id))
+      .filter((member): member is Staff => member !== undefined && !member.is_active)
   );
 
   function isSelected(staffId: number): boolean {
@@ -80,6 +86,61 @@
       {selected.length} seleccionado{selected.length === 1 ? '' : 's'}
     </span>
   </div>
+
+  {#if selectedInactiveMembers.length > 0}
+    <div class="inactive-assigned" role="group" aria-label="Personal dado de baja asignado">
+      <p class="status-note">
+        Estos funcionarios están dados de baja pero siguen asignados al servicio. Quitalos o
+        reasignalos antes de guardar.
+      </p>
+      <ul class="candidate-grid">
+        {#each selectedInactiveMembers as member (member.id)}
+          {@const lead = isLead(member.id)}
+          <li class="candidate-card is-selected is-inactive">
+            <div class="candidate-main">
+              <label class="candidate-check">
+                <input
+                  type="checkbox"
+                  checked
+                  onchange={() => toggleStaff(member.id)}
+                  {disabled}
+                />
+                <Avatar
+                  photoUrl={member.photo_url}
+                  gender={member.gender}
+                  alt={`Foto de ${member.first_name} ${member.last_name}`}
+                  size="sm"
+                />
+                <span class="candidate-info">
+                  <span class="candidate-name">
+                    {member.first_name} {member.last_name}
+                  </span>
+                  <span class="candidate-role">
+                    {labelOf(staffRoleLabels, member.role)}
+                  </span>
+                </span>
+              </label>
+
+              {#if lead}
+                <button
+                  type="button"
+                  class="lead-toggle is-lead"
+                  onclick={() => setLead(member.id)}
+                  {disabled}
+                >
+                  Responsable principal
+                </button>
+              {/if}
+            </div>
+
+            <div class="reasons-row">
+              <span class="reason-pill is-warning">Dado de baja</span>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
 
   {#if loading}
     <p class="status-note" role="status">Calculando sugerencias disponibles…</p>
@@ -245,6 +306,20 @@
   .status-note {
     color: var(--color-ink-muted);
     font-size: var(--text-sm);
+  }
+
+  .inactive-assigned {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-md);
+    background: var(--color-warning-soft);
+  }
+
+  .candidate-card.is-inactive {
+    border-color: var(--color-warning);
   }
 
   .candidate-grid {

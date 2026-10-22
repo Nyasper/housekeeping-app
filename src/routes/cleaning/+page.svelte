@@ -94,8 +94,6 @@
     await loadSelectedDate();
   }
 
-  const activeStaff = $derived(staffService.items.filter((m) => m.is_active));
-
   const filteredServices = $derived.by(() => {
     return cleaningService.items.filter((service) => {
       if (statusFilter !== 'all' && service.status !== statusFilter) {
@@ -293,7 +291,7 @@
     initial={editingService}
     defaultDate={dateService.selectedDate}
     places={placesService.items}
-    allActiveStaff={activeStaff}
+    allStaff={staffService.items}
     suggestions={cleaningService.suggestions}
     loadingSuggestions={cleaningService.loadingSuggestions}
     busy={cleaningService.saving}

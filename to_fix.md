@@ -13,7 +13,7 @@ commit por punto después de correr los checks correspondientes.
   Archivos: `placesService.svelte.ts`, `routes/places/+page.svelte`,
   `routes/cleaning/+page.svelte`, `ServiceForm.svelte`.
 
-- [ ] **2. Personal dado de baja invisible en el formulario de servicio.**
+- [x] **2. Personal dado de baja invisible en el formulario de servicio.**
   `AvailabilityList` solo renderiza sugerencias y personal activo; un asignado
   inactivo queda seleccionado pero sin tarjeta, y no se puede quitar.
   Archivos: `AvailabilityList.svelte`, `ServiceForm.svelte`, `routes/+page.svelte`,

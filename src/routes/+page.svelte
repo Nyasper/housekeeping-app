@@ -39,8 +39,6 @@
   let toastMessage = $state<string | null>(null);
   let toastTone = $state<'success' | 'warning' | 'error'>('success');
 
-  const activeStaff = $derived(staffService.items.filter((m) => m.is_active));
-
   const isLoading = $derived(
     cleaningService.loading ||
       placesService.loading ||
@@ -373,7 +371,7 @@
     initialServiceType={presetServiceType}
     defaultDate={dateService.selectedDate}
     places={placesService.items}
-    allActiveStaff={activeStaff}
+    allStaff={staffService.items}
     suggestions={cleaningService.suggestions}
     loadingSuggestions={cleaningService.loadingSuggestions}
     busy={cleaningService.saving}

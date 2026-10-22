@@ -24,7 +24,7 @@
     initialServiceType?: ServiceType | null;
     defaultDate: string;
     places: Place[];
-    allActiveStaff: Staff[];
+    allStaff: Staff[];
     suggestions: StaffSuggestion[];
     loadingSuggestions?: boolean;
     busy?: boolean;
@@ -49,7 +49,7 @@
     initialServiceType = null,
     defaultDate,
     places,
-    allActiveStaff,
+    allStaff,
     suggestions,
     loadingSuggestions = false,
     busy = false,
@@ -283,7 +283,7 @@
 
   <AvailabilityList
     {suggestions}
-    {allActiveStaff}
+    {allStaff}
     selected={selectedStaff}
     loading={loadingSuggestions}
     disabled={busy}
