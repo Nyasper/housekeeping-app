@@ -386,21 +386,25 @@ pub async fn set_staff_places(
         CommandError::new("not_found", "No se encontró el funcionario solicitado.")
     })?;
 
-    let unique_ids: Vec<i64> = place_ids
+    let requested_ids: Vec<i64> = place_ids
         .into_iter()
         .collect::<BTreeSet<i64>>()
         .into_iter()
         .collect();
 
-    let valid_count = repo::count_valid_active_apartments(pool, &unique_ids).await?;
-    if valid_count != unique_ids.len() {
+    let valid_count = repo::count_valid_active_apartments(pool, &requested_ids).await?;
+    if valid_count != requested_ids.len() {
         return Err(CommandError::new(
             "validation",
             "Los apartamentos principales deben ser apartamentos activos existentes.",
         ));
     }
 
-    repo::replace_staff_places(pool, staff_id, &unique_ids).await?;
+    let mut final_ids: BTreeSet<i64> = requested_ids.into_iter().collect();
+    final_ids.extend(repo::list_inactive_staff_place_ids(pool, staff_id).await?);
+    let final_ids: Vec<i64> = final_ids.into_iter().collect();
+
+    repo::replace_staff_places(pool, staff_id, &final_ids).await?;
     get_staff(pool, data_dir, staff_id).await
 }
 
@@ -749,6 +753,24 @@ mod tests {
                 .await
                 .expect_err("inactive apartment rejected");
             assert_eq!(err_inactive.code, "validation");
+
+            // Deactivating a main place keeps the association dormant instead of dropping it
+            sqlx::query("UPDATE place SET is_active = 0 WHERE id = 1")
+                .execute(&pool)
+                .await
+                .expect("deactivate main place");
+            set_staff_places(&pool, None, staff.id, vec![])
+                .await
+                .expect("save without active main places");
+            sqlx::query("UPDATE place SET is_active = 1 WHERE id = 1")
+                .execute(&pool)
+                .await
+                .expect("reactivate main place");
+            let restored = get_staff(&pool, None, staff.id)
+                .await
+                .expect("staff after reactivating main place");
+            assert_eq!(restored.main_places.len(), 1);
+            assert_eq!(restored.main_places[0].id, 1);
 
             // Absences without overlaps
             let abs1 = create_absence(

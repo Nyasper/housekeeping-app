@@ -43,7 +43,7 @@ commit por punto después de correr los checks correspondientes.
   decimal. `PLAN.md:273` pide UTF-8 con BOM para Excel.
   Archivos: `export_csv.rs`, `queries.rs` (`to_csv_string`).
 
-- [ ] **7. Editar un funcionario borra sus lugares principales desactivados.**
+- [x] **7. Editar un funcionario borra sus lugares principales desactivados.**
   `staff_places_set` reemplaza todas las asociaciones con la lista de lugares
   activos que envía el formulario.
   Archivos: `staff/service.rs`, `staff/repo.rs`, `PLAN.md`.

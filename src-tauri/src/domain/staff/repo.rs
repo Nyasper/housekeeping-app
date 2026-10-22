@@ -343,6 +343,27 @@ pub async fn count_valid_active_apartments(
     Ok(valid_count)
 }
 
+/// Returns the staff's main-place associations whose place is currently
+/// deactivated. These are kept dormant so reactivating the place restores the
+/// assignment instead of silently losing it when the staff form is saved.
+pub async fn list_inactive_staff_place_ids(
+    pool: &SqlitePool,
+    staff_id: i64,
+) -> Result<Vec<i64>, sqlx::Error> {
+    sqlx::query_scalar(
+        "SELECT sp.place_id
+         FROM staff_place sp
+         INNER JOIN place p ON p.id = sp.place_id
+         WHERE sp.staff_id = ?1
+           AND p.type = 'apartment'
+           AND p.is_active = 0
+         ORDER BY sp.place_id ASC",
+    )
+    .bind(staff_id)
+    .fetch_all(pool)
+    .await
+}
+
 pub async fn replace_staff_places(
     pool: &SqlitePool,
     staff_id: i64,

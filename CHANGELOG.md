@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Staff assignment warnings now only appear for overlapping services or when times are missing, instead of for every same-day assignment.
 - Completed services can no longer be cancelled; they can only be reopened to a planned or in-progress state with explicit confirmation.
 - CSV exports now use semicolon separators and comma decimals so they open correctly in Excel with Spanish regional settings.
+- Editing a staff member no longer drops main-place associations to deactivated apartments; they are restored when the apartment is reactivated.
 - Invalid ISO dates such as `2026-02-30` are no longer rolled over into the next month.
 - Duration formatting no longer renders `60 min` for values close to one hour.
 - Time formatting and duration calculations now reject out-of-range hours and minutes.

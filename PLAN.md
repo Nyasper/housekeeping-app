@@ -105,7 +105,7 @@
 - Un funcionario puede tener **varios apartamentos principales** (relación N:M en `staff_place`).
 - Los principales se sugieren como **primeras opciones** al asignar un servicio.
 - Un funcionario **también puede ser asignado a lugares no principales**; la asignación no se restringe a su lista.
-- `staff_place` solo acepta lugares de tipo `apartment` y activos.
+- `staff_place` solo acepta lugares de tipo `apartment` y activos al momento de asignarlos; las asociaciones existentes se conservan si el lugar se desactiva.
 - No hay una segunda categoría de asignación; "no principal" = cualquier lugar fuera de esa lista.
 
 **Control de ausencias:**
@@ -770,7 +770,7 @@ Todos en inglés, formato `{domain}_{action}`:
 **Contratos clave:**
 - `cleaning_create` incluye obligatoriamente `staff: [{ staff_id, is_lead }]` (≥1).
 - `cleaning_set_staff` recibe la lista completa; no admite vacío; máximo un `is_lead`.
-- `staff_places_set` reemplaza el conjunto de apartamentos principales (solo apartamentos activos).
+- `staff_places_set` reemplaza el conjunto de apartamentos principales activos; conserva las asociaciones con apartamentos desactivados para no perderlas al reactivarlos.
 - `places_recommended_task(place_id, date)` devuelve `{ effective_status, recommended_service_type }`.
 - `cleaning_suggest_staff(place_id, service_type, date, count)` devuelve candidatos ordenados con motivo (`count` por defecto 10).
 - `export_*` reciben `{ kind, filters, dest_path }`; el frontend abre el diálogo `save` y pasa la ruta.
