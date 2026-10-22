@@ -80,6 +80,8 @@ housekeeping-app/
   CHANGELOG.md
   PLAN.md
   README.md
+  TESTS_BACKEND.md
+  TESTS_FRONTEND.md
   package.json
   tsconfig.json
   vite.config.js
@@ -223,6 +225,7 @@ static/
 
 - **Rust:** `cargo fmt` and `cargo clippy -- -D warnings`; tests with `cargo test`.
 - **Frontend:** `bun run check` (svelte-check); `bun test` (Bun test runner) for functions and services; `prettier` + `prettier-plugin-svelte`; ESLint with `eslint-plugin-svelte` (or Biome).
+- **Test documentation:** backend in `TESTS_BACKEND.md`, frontend in `TESTS_FRONTEND.md`.
 - **Scripts:** `check`, `lint`, `format`, `test` in `package.json`.
 - **Git:** automatic commit for each feature/big change with an English message; post-MVP `CHANGELOG.md` (section 9).
 
