@@ -146,7 +146,7 @@
   - `status = NULL` → **automático** derivado de `check_in_date` / `check_out_date`.
   - `status` con valor → **override manual**.
   - `cancelled` es un override manual para omitir el turno; se muestra como insignia y **no genera recomendación**.
-  - El tablero muestra desde cuándo está cancelado (`updated_at`) para facilitar revertirlo.
+  - El tablero muestra desde cuándo está cancelado (`cancelled_at`) para facilitar revertirlo.
   - Para áreas comunes, `status` siempre es `NULL` (no aplica).
 - **Fechas opcionales (D8):**
   - `check_in_date` (ingreso) y `check_out_date` (egreso).
@@ -424,6 +424,7 @@ IDs: `INTEGER PRIMARY KEY AUTOINCREMENT` (Rust `i64`, TS `number`). Fechas/horas
 | check_in_date | TEXT NULL | solo apartamentos; NULL = desconocido |
 | check_out_date | TEXT NULL | solo apartamentos; NULL = desconocido |
 | is_active | INTEGER NOT NULL DEFAULT 1 | |
+| cancelled_at | TEXT NULL | UTC; se setea al pasar `status` a `cancelled` y se limpia al salir de ese estado |
 | notes | TEXT NULL | |
 | created_at / updated_at | TEXT NOT NULL DEFAULT (datetime('now')) | |
 

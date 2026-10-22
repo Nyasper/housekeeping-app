@@ -12,6 +12,7 @@ const PLACE_SELECT: &str = "
         check_in_date,
         check_out_date,
         is_active,
+        cancelled_at,
         notes,
         created_at,
         updated_at
@@ -63,8 +64,12 @@ pub async fn insert_place(
             location,
             check_in_date,
             check_out_date,
-            notes
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            notes,
+            cancelled_at
+        ) VALUES (
+            ?1, ?2, ?3, ?4, ?5, ?6, ?7,
+            CASE WHEN ?3 = 'cancelled' THEN datetime('now') ELSE NULL END
+        )",
     )
     .bind(name)
     .bind(place_type)
@@ -100,6 +105,14 @@ pub async fn update_place(
             check_in_date = ?5,
             check_out_date = ?6,
             notes = ?7,
+            cancelled_at = CASE
+                WHEN ?3 = 'cancelled'
+                     AND (status IS NULL OR status != 'cancelled')
+                    THEN datetime('now')
+                WHEN ?3 IS NULL OR ?3 != 'cancelled'
+                    THEN NULL
+                ELSE cancelled_at
+            END,
             updated_at = datetime('now')
          WHERE id = ?8",
     )

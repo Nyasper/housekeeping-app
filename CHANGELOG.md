@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV exports now use semicolon separators and comma decimals so they open correctly in Excel with Spanish regional settings.
 - Editing a staff member no longer drops main-place associations to deactivated apartments; they are restored when the apartment is reactivated.
 - Daily-sheet exports no longer count cancelled services in the service, completed, or minutes totals.
+- The board and places list now show the actual cancellation date from a dedicated `place.cancelled_at` timestamp, and cancellation/resolution timestamps are converted from UTC to local time.
 - Invalid ISO dates such as `2026-02-30` are no longer rolled over into the next month.
 - Duration formatting no longer renders `60 min` for values close to one hour.
 - Time formatting and duration calculations now reject out-of-range hours and minutes.

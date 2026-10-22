@@ -11,6 +11,7 @@ import {
   formatMonth,
   formatNumber,
   formatTime,
+  formatUtcDateTimeDate,
   nowTimeIso,
   parseIsoDate,
   shiftIsoDate,
@@ -164,6 +165,20 @@ describe('formatters', () => {
     expect(formatDate(undefined)).toBe('Sin datos');
     expect(formatDate('')).toBe('Sin datos');
     expect(formatDate('2026-02-30', 'Sin fecha')).toBe('Sin fecha');
+  });
+
+  test('formatUtcDateTimeDate converts SQLite UTC timestamps to the local date', () => {
+    const formatter = new Intl.DateTimeFormat('es-UY', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    const expected = formatter.format(new Date('2026-10-21T12:30:00Z'));
+
+    expect(formatUtcDateTimeDate('2026-10-21 12:30:00')).toBe(expected);
+    expect(formatUtcDateTimeDate('2026-10-21T12:30:00Z')).toBe(expected);
+    expect(formatUtcDateTimeDate(null)).toBe('Sin datos');
+    expect(formatUtcDateTimeDate('not-a-date', 'Sin fecha')).toBe('Sin fecha');
   });
 
   test('formatMonth handles valid and invalid months', () => {

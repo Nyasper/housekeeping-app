@@ -22,7 +22,7 @@
   import { cleaningService } from '#lib/services/cleaningService.svelte.js';
   import { dateService } from '#lib/services/dateService.svelte.js';
   import { incidentsService } from '#lib/services/incidentsService.svelte.js';
-  import { formatDate } from '#lib/utils/format.js';
+  import { formatDate, formatUtcDateTimeDate } from '#lib/utils/format.js';
 
   const incidentTypeOptions = toOptions(incidentTypeLabels);
   const incidentStatusOptions = toOptions(incidentStatusLabels);
@@ -416,7 +416,7 @@
             <p class="meta-line">
               Fecha: {formatDate(incident.date)}
               {#if incident.status === 'resolved' && incident.resolved_at}
-                · Resuelta el {formatDate(incident.resolved_at.slice(0, 10))}
+                · Resuelta el {formatUtcDateTimeDate(incident.resolved_at)}
               {/if}
             </p>
           </div>

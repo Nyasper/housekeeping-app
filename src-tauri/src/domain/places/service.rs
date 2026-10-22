@@ -109,6 +109,7 @@ fn map_row_to_place(row: PlaceRow, reference_date: NaiveDate, settings: AppSetti
         check_in_date: row.check_in_date,
         check_out_date: row.check_out_date,
         is_active: row.is_active != 0,
+        cancelled_at: row.cancelled_at,
         notes: row.notes,
         created_at: row.created_at,
         updated_at: row.updated_at,
@@ -397,12 +398,21 @@ mod tests {
                 .expect("set cancelled");
             assert_eq!(updated.effective_status, "cancelled");
             assert!(updated.recommended_service_type.is_none());
+            assert!(updated.cancelled_at.is_some());
 
             let rec_cancelled = recommended_task(&pool, apt.id, "2026-10-21")
                 .await
                 .expect("rec cancelled");
             assert_eq!(rec_cancelled.effective_status, "cancelled");
             assert!(rec_cancelled.recommended_service_type.is_none());
+
+            // Clearing the manual status clears the cancellation timestamp
+            let mut restored_input = sample_apartment("Apto 302");
+            restored_input.status = None;
+            let restored = update_place(&pool, apt.id, restored_input)
+                .await
+                .expect("clear cancelled");
+            assert!(restored.cancelled_at.is_none());
 
             // Future active service blocks deactivation
             sqlx::query("INSERT INTO cleaning_service (id, place_id, date, service_type, status) VALUES (1, ?1, '2099-12-31', 'daily_cleaning', 'planned')")

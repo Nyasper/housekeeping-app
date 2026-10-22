@@ -91,6 +91,7 @@ export interface Place extends PlaceSummary {
   check_in_date: string | null;
   check_out_date: string | null;
   is_active: boolean;
+  cancelled_at: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

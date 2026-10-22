@@ -19,7 +19,7 @@
   import PlaceForm from '#lib/components/PlaceForm.svelte';
   import Toast from '#lib/components/Toast.svelte';
   import { placesService } from '#lib/services/placesService.svelte.js';
-  import { formatDate, todayIso } from '#lib/utils/format.js';
+  import { formatDate, formatUtcDateTimeDate, todayIso } from '#lib/utils/format.js';
 
   const typeOptions = toOptions(placeTypeLabels);
   const statusOptions = toOptions(placeStatusLabels);
@@ -327,7 +327,10 @@
               <dt>Tarea recomendada hoy</dt>
               <dd>
                 {#if place.effective_status === 'cancelled'}
-                  Turno omitido (cancelado desde {formatDate(place.updated_at.slice(0, 10))})
+                  Turno omitido (cancelado desde {formatUtcDateTimeDate(
+                    place.cancelled_at,
+                    'fecha desconocida'
+                  )})
                 {:else if place.recommended_service_type}
                   {labelOf(serviceTypeLabels, place.recommended_service_type)}
                 {:else}

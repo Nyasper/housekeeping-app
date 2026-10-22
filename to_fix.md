@@ -54,7 +54,7 @@ commit por punto después de correr los checks correspondientes.
   La UI excluye cancelados de los KPIs; el export los cuenta y suma sus minutos.
   Archivo: `src-tauri/src/domain/reports/queries.rs`.
 
-- [ ] **9. “Cancelado desde” usa `updated_at`.**
+- [x] **9. “Cancelado desde” usa `updated_at`.**
   Es la última modificación, no la cancelación, y está en UTC. Agregar
   `cancelled_at` y formatear timestamps UTC a local.
   Archivos: migración, `places` model/repo/service, `DailyBoard.svelte`,

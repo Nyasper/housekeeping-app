@@ -26,6 +26,7 @@
     formatDate,
     formatDurationMinutes,
     formatTime,
+    formatUtcDateTimeDate,
     weekdayFromIsoDate
   } from '#lib/utils/format.js';
   import Avatar from './Avatar.svelte';
@@ -494,7 +495,7 @@
                   <div>
                     <strong>{apt.name}</strong>
                     <span class="cancelled-date">
-                      · Cancelado desde {formatDate(apt.updated_at.slice(0, 10))}
+                      · Cancelado desde {formatUtcDateTimeDate(apt.cancelled_at, 'fecha desconocida')}
                     </span>
                   </div>
                   <button

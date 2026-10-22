@@ -152,6 +152,26 @@ export function formatDate(value: string | null | undefined, fallback = 'Sin dat
   return date ? shortDateFormatter.format(date) : fallback;
 }
 
+/**
+ * Parses a SQLite `datetime('now')` timestamp (UTC, `YYYY-MM-DD HH:MM:SS`)
+ * and formats its local date. ISO timestamps with an explicit offset are kept.
+ */
+export function formatUtcDateTimeDate(
+  value: string | null | undefined,
+  fallback = 'Sin datos'
+): string {
+  if (!value) {
+    return fallback;
+  }
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T');
+  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(normalized) ? normalized : `${normalized}Z`;
+  const date = new Date(withZone);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+  return shortDateFormatter.format(date);
+}
+
 export function formatMonth(value: string, fallback = 'Sin datos'): string {
   const date = parseIsoDate(`${value}-01`);
   return date ? capitalize(monthFormatter.format(date)) : fallback;
