@@ -80,7 +80,7 @@ commit por punto después de correr los checks correspondientes.
   `startTime ?? service.start_time` impide pasar `null` para borrar.
   Archivo: `cleaningService.svelte.ts`.
 
-- [ ] **14. Restore reporta error si falla una recarga posterior.**
+- [x] **14. Restore reporta error si falla una recarga posterior.**
   La restauración puede haber sido exitosa aunque `settingsService.load` u otra
   recarga fallen.
   Archivo: `backupService.svelte.ts`.

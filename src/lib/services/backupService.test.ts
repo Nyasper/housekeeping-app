@@ -173,6 +173,29 @@ describe('BackupService.restoreBackup', () => {
     expect(service.restoring).toBe(false);
   });
 
+  test('keeps the restore successful but reports reload failures', async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      switch (command) {
+        case 'backup_restore':
+          return manifest;
+        case 'settings_get':
+          throw { code: 'database', message: 'No se pudo leer la configuración.' };
+        default:
+          return [];
+      }
+    });
+    const service = new BackupService();
+
+    const result = await service.restoreBackup('backup.zip');
+
+    expect(result).toEqual(manifest);
+    expect(service.lastRestoreManifest).toEqual(manifest);
+    expect(service.error).toBe(
+      'El respaldo se restauró, pero no se pudieron recargar todos los datos: No se pudo leer la configuración.'
+    );
+    expect(service.restoring).toBe(false);
+  });
+
   test('stores the translated error when restoring fails', async () => {
     invokeMock.mockRejectedValueOnce({ code: 'invalid_backup', message: 'Respaldo inválido.' });
     const service = new BackupService();

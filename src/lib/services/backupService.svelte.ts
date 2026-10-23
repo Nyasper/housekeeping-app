@@ -118,6 +118,18 @@ export class BackupService {
         incidentsService.load()
       ]);
 
+      // The reload helpers swallow their own errors; surface them as a warning
+      // without turning a successful restore into a failure.
+      const reloadError =
+        settingsService.error ??
+        staffService.error ??
+        placesService.error ??
+        cleaningService.error ??
+        incidentsService.error;
+      if (reloadError) {
+        this.error = `El respaldo se restauró, pero no se pudieron recargar todos los datos: ${reloadError}`;
+      }
+
       return manifest;
     } catch (cause) {
       this.error = errorMessage(cause);

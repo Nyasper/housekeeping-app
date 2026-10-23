@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changing staff on a completed service now requires explicit confirmation, matching the completed-service edit rule.
 - PDF exports now cap oversized table rows so long notes cannot overflow into the page footer.
 - Cleaning status updates can now explicitly clear start/end times by passing `null`.
+- Restore now keeps a successful restore reported as successful while warning if cached data could not be reloaded.
 - Invalid ISO dates such as `2026-02-30` are no longer rolled over into the next month.
 - Duration formatting no longer renders `60 min` for values close to one hour.
 - Time formatting and duration calculations now reject out-of-range hours and minutes.
