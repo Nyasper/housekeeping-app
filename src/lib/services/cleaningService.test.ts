@@ -128,6 +128,23 @@ describe('CleaningServiceManager.update and setStatus', () => {
       confirmReopen: true
     });
   });
+
+  test('clears times when null is explicitly provided', async () => {
+    const service = makeCleaningService({ start_time: '09:00', end_time: '10:00' });
+    invokeMock.mockResolvedValueOnce(makeCleaningService({ status: 'planned' }));
+    invokeMock.mockResolvedValueOnce([]);
+    const manager = new CleaningServiceManager();
+
+    await manager.setStatus(service, 'planned', null, null);
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, 'cleaning_set_status', {
+      id: 1,
+      status: 'planned',
+      startTime: null,
+      endTime: null,
+      confirmReopen: false
+    });
+  });
 });
 
 describe('CleaningServiceManager.setStaff', () => {

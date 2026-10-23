@@ -86,8 +86,8 @@ export class CleaningServiceManager {
       const updated = await call<CleaningService>('cleaning_set_status', {
         id: service.id,
         status,
-        startTime: startTime ?? service.start_time,
-        endTime: endTime ?? service.end_time,
+        startTime: startTime === undefined ? service.start_time : startTime,
+        endTime: endTime === undefined ? service.end_time : endTime,
         confirmReopen
       });
       await this.loadByDate(service.date);

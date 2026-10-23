@@ -76,7 +76,7 @@ commit por punto después de correr los checks correspondientes.
   una página.
   Archivo: `src-tauri/src/domain/reports/export_pdf.rs`.
 
-- [ ] **13. `cleaningService.setStatus` no puede limpiar horas.**
+- [x] **13. `cleaningService.setStatus` no puede limpiar horas.**
   `startTime ?? service.start_time` impide pasar `null` para borrar.
   Archivo: `cleaningService.svelte.ts`.
 
