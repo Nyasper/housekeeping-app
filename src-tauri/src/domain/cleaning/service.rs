@@ -478,11 +478,13 @@ pub async fn set_service_staff(
     data_dir: Option<&Path>,
     id: i64,
     staff: Vec<ServiceStaffInput>,
+    confirm_reopen: bool,
 ) -> Result<CleaningService, CommandError> {
     let existing = repo::get_service_row(pool, id)
         .await?
         .ok_or_else(|| CommandError::new("not_found", "No se encontró el servicio solicitado."))?;
 
+    validate_status_transition(&existing.status, &existing.status, confirm_reopen)?;
     validate_staff_inputs(&staff)?;
 
     let warning = check_double_assignment_warnings(
@@ -805,6 +807,7 @@ mod tests {
                     staff_id: s2.id,
                     is_lead: true,
                 }],
+                false,
             )
             .await
             .expect("reassign sole staff");
@@ -858,6 +861,35 @@ mod tests {
             .await
             .expect("completed");
             assert_eq!(completed.status, "completed");
+
+            // Changing staff on a completed service requires explicit confirmation
+            let staff_change_blocked = set_service_staff(
+                &pool,
+                None,
+                service.id,
+                vec![ServiceStaffInput {
+                    staff_id: s2.id,
+                    is_lead: true,
+                }],
+                false,
+            )
+            .await
+            .expect_err("completed staff change without confirmation");
+            assert_eq!(staff_change_blocked.code, "blocked");
+
+            let staff_change_confirmed = set_service_staff(
+                &pool,
+                None,
+                service.id,
+                vec![ServiceStaffInput {
+                    staff_id: s2.id,
+                    is_lead: true,
+                }],
+                true,
+            )
+            .await
+            .expect("completed staff change with confirmation");
+            assert_eq!(staff_change_confirmed.staff[0].staff_id, s2.id);
 
             // Cancelling a completed service is not allowed, even with confirmation
             let cancel_completed =

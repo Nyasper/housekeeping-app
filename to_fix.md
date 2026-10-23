@@ -66,7 +66,7 @@ commit por punto después de correr los checks correspondientes.
   inactivo pero rechazar el cambio a otro lugar inactivo.
   Archivo: `src-tauri/src/domain/cleaning/service.rs`.
 
-- [ ] **11. `cleaning_set_staff` modifica servicios completados sin confirmación.**
+- [x] **11. `cleaning_set_staff` modifica servicios completados sin confirmación.**
   Agregar `confirm_reopen` y validar la transición, o bloquear si está completado.
   Archivos: `cleaning/service.rs`, `cleaning/commands.rs`,
   `cleaningService.svelte.ts`.

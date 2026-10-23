@@ -87,12 +87,20 @@ pub async fn cleaning_set_status(
 pub async fn cleaning_set_staff(
     id: i64,
     staff: Vec<ServiceStaffInput>,
+    confirm_reopen: Option<bool>,
     app: AppHandle,
     state: State<'_, DbState>,
 ) -> Result<CleaningService, CommandError> {
     let data_dir = db::data_dir(&app).ok();
     let pool = state.pool().read().await.clone();
-    service::set_service_staff(&pool, data_dir.as_deref(), id, staff).await
+    service::set_service_staff(
+        &pool,
+        data_dir.as_deref(),
+        id,
+        staff,
+        confirm_reopen.unwrap_or(false),
+    )
+    .await
 }
 
 #[tauri::command]

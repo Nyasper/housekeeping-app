@@ -102,7 +102,8 @@ export class CleaningServiceManager {
 
   async setStaff(
     service: CleaningService,
-    staff: ServiceStaffInput[]
+    staff: ServiceStaffInput[],
+    confirmReopen = false
   ): Promise<CleaningService | null> {
     this.saving = true;
     this.error = null;
@@ -110,7 +111,8 @@ export class CleaningServiceManager {
     try {
       const updated = await call<CleaningService>('cleaning_set_staff', {
         id: service.id,
-        staff
+        staff,
+        confirmReopen
       });
       this.lastWarning = updated.warning ?? null;
       await this.loadByDate(service.date);

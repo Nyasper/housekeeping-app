@@ -143,7 +143,28 @@ describe('CleaningServiceManager.setStaff', () => {
 
     expect(result).toEqual(updated);
     expect(manager.lastWarning).toBe('Advertencia');
-    expect(invokeMock).toHaveBeenNthCalledWith(1, 'cleaning_set_staff', { id: 1, staff });
+    expect(invokeMock).toHaveBeenNthCalledWith(1, 'cleaning_set_staff', {
+      id: 1,
+      staff,
+      confirmReopen: false
+    });
+  });
+
+  test('passes confirmReopen when changing staff on a completed service', async () => {
+    const service = makeCleaningService({ status: 'completed' });
+    const staff = [makeServiceStaffInput({ staff_id: 2 })];
+    const updated = makeCleaningService({ status: 'completed' });
+    invokeMock.mockResolvedValueOnce(updated);
+    invokeMock.mockResolvedValueOnce([updated]);
+    const manager = new CleaningServiceManager();
+
+    await manager.setStaff(service, staff, true);
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, 'cleaning_set_staff', {
+      id: 1,
+      staff,
+      confirmReopen: true
+    });
   });
 });
 
