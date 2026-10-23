@@ -71,7 +71,7 @@ commit por punto después de correr los checks correspondientes.
   Archivos: `cleaning/service.rs`, `cleaning/commands.rs`,
   `cleaningService.svelte.ts`.
 
-- [ ] **12. PDF: una fila muy alta desborda el pie de página.**
+- [x] **12. PDF: una fila muy alta desborda el pie de página.**
   Limitar la altura de una fila (truncar con elipsis) para que siempre entre en
   una página.
   Archivo: `src-tauri/src/domain/reports/export_pdf.rs`.

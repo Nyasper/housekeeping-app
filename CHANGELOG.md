@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The board and places list now show the actual cancellation date from a dedicated `place.cancelled_at` timestamp, and cancellation/resolution timestamps are converted from UTC to local time.
 - Editing a service can no longer move it to a deactivated place; historical services on deactivated places remain editable.
 - Changing staff on a completed service now requires explicit confirmation, matching the completed-service edit rule.
+- PDF exports now cap oversized table rows so long notes cannot overflow into the page footer.
 - Invalid ISO dates such as `2026-02-30` are no longer rolled over into the next month.
 - Duration formatting no longer renders `60 min` for values close to one hour.
 - Time formatting and duration calculations now reject out-of-range hours and minutes.

@@ -22,6 +22,9 @@ const HEADER_ROW_HEIGHT_MM: f32 = 8.5;
 const LINE_HEIGHT_MM: f32 = 4.2;
 const ROW_PADDING_Y_MM: f32 = 2.6;
 const CELL_PADDING_X_MM: f32 = 2.0;
+/// Keep a single row below the usable table height so it cannot overlap the
+/// footer when it is the first row of a page.
+const MAX_ROW_HEIGHT_MM: f32 = 140.0;
 
 /// Exports the requested report as a printable A4 landscape PDF document with embedded
 /// `DejaVuSans` font, automatic page breaks, and page numbering.
@@ -228,6 +231,40 @@ fn wrap_text_lines(text: &str, max_width_mm: f32, font_size_pt: f32) -> Vec<Stri
     lines
 }
 
+fn ellipsize_to_width(text: &str, max_width_mm: f32, font_size_pt: f32) -> String {
+    let usable = (max_width_mm - 2.0 * CELL_PADDING_X_MM - 0.5).max(8.0);
+    let ellipsis = "…";
+    let mut chars: Vec<char> = text.chars().collect();
+    loop {
+        let candidate = format!("{}{ellipsis}", chars.iter().collect::<String>());
+        if estimate_text_width_mm(&candidate, font_size_pt) <= usable || chars.is_empty() {
+            return candidate;
+        }
+        chars.pop();
+    }
+}
+
+/// Truncates the tallest cells so a single row always fits on one page.
+fn cap_wrapped_row(
+    wrapped_cells: &mut [Vec<String>],
+    col_widths: &[f32],
+    font_size_pt: f32,
+    padding_y_mm: f32,
+) -> f32 {
+    let max_lines = (((MAX_ROW_HEIGHT_MM - padding_y_mm) / LINE_HEIGHT_MM).floor() as usize).max(1);
+    for (idx, lines) in wrapped_cells.iter_mut().enumerate() {
+        if lines.len() > max_lines {
+            lines.truncate(max_lines);
+            if let Some(last) = lines.last_mut() {
+                let col_w = col_widths.get(idx).copied().unwrap_or(30.0);
+                *last = ellipsize_to_width(last, col_w, font_size_pt);
+            }
+        }
+    }
+    let max_lines_in_row = wrapped_cells.iter().map(Vec::len).max().unwrap_or(1).max(1);
+    (max_lines_in_row as f32) * LINE_HEIGHT_MM + padding_y_mm
+}
+
 fn normalized_column_widths(columns: &[ExportColumn]) -> Vec<f32> {
     let usable_width = PAGE_WIDTH_MM - 2.0 * MARGIN_X_MM;
     let raw_sum: f32 = columns.iter().map(|c| c.width_mm).sum();
@@ -264,7 +301,7 @@ fn prepare_table_rows(dataset: &ExportDataset, col_widths: &[f32]) -> Vec<Prepar
         });
     } else {
         for row in &dataset.rows {
-            let wrapped_cells: Vec<Vec<String>> = row
+            let mut wrapped_cells: Vec<Vec<String>> = row
                 .iter()
                 .enumerate()
                 .map(|(idx, cell)| {
@@ -278,7 +315,11 @@ fn prepare_table_rows(dataset: &ExportDataset, col_widths: &[f32]) -> Vec<Prepar
                 .max()
                 .unwrap_or(1)
                 .max(1);
-            let height_mm = (max_lines as f32) * LINE_HEIGHT_MM + ROW_PADDING_Y_MM * 2.0;
+            let mut height_mm = (max_lines as f32) * LINE_HEIGHT_MM + ROW_PADDING_Y_MM * 2.0;
+            if height_mm > MAX_ROW_HEIGHT_MM {
+                height_mm =
+                    cap_wrapped_row(&mut wrapped_cells, col_widths, 8.5, ROW_PADDING_Y_MM * 2.0);
+            }
             prepared.push(PreparedRow {
                 wrapped_cells,
                 height_mm,
@@ -288,7 +329,7 @@ fn prepare_table_rows(dataset: &ExportDataset, col_widths: &[f32]) -> Vec<Prepar
         }
     }
 
-    let totals_wrapped: Vec<Vec<String>> = dataset
+    let mut totals_wrapped: Vec<Vec<String>> = dataset
         .totals_row
         .iter()
         .enumerate()
@@ -303,7 +344,11 @@ fn prepare_table_rows(dataset: &ExportDataset, col_widths: &[f32]) -> Vec<Prepar
         .max()
         .unwrap_or(1)
         .max(1);
-    let totals_height = (max_lines as f32) * LINE_HEIGHT_MM + ROW_PADDING_Y_MM * 2.2;
+    let mut totals_height = (max_lines as f32) * LINE_HEIGHT_MM + ROW_PADDING_Y_MM * 2.2;
+    if totals_height > MAX_ROW_HEIGHT_MM {
+        totals_height =
+            cap_wrapped_row(&mut totals_wrapped, col_widths, 8.8, ROW_PADDING_Y_MM * 2.2);
+    }
     prepared.push(PreparedRow {
         wrapped_cells: totals_wrapped,
         height_mm: totals_height,
@@ -626,4 +671,41 @@ pub fn render_pdf_bytes(dataset: &ExportDataset) -> Result<Vec<u8>, CommandError
     }
 
     Ok(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::queries::ExportCell;
+    use super::*;
+
+    #[test]
+    fn prepared_rows_are_capped_to_fit_one_page() {
+        let dataset = ExportDataset {
+            kind: ExportKind::DailySheet,
+            title: "Planilla diaria".to_string(),
+            subtitle: "Prueba".to_string(),
+            columns: vec![ExportColumn {
+                header: "Notas",
+                width_chars: 60.0,
+                width_mm: 260.0,
+                align: ExportAlignment::Left,
+            }],
+            rows: vec![vec![ExportCell::Text("nota ".repeat(2000))]],
+            totals_row: vec![ExportCell::Text("Total".to_string())],
+        };
+
+        let col_widths = normalized_column_widths(&dataset.columns);
+        let rows = prepare_table_rows(&dataset, &col_widths);
+
+        assert!(rows.iter().all(|row| row.height_mm <= MAX_ROW_HEIGHT_MM));
+        assert!(
+            rows[0].wrapped_cells[0]
+                .last()
+                .is_some_and(|line| line.ends_with('…'))
+        );
+
+        let initial_cursor_y = PAGE_HEIGHT_MM - MARGIN_TOP_MM - 16.0 - 3.0 - HEADER_ROW_HEIGHT_MM;
+        let min_table_y = MARGIN_BOTTOM_MM + FOOTER_RESERVE_MM;
+        assert!(initial_cursor_y - rows[0].height_mm >= min_table_y);
+    }
 }
