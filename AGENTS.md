@@ -28,7 +28,7 @@
 - `MIGRATION_TASKS.md` was deleted: the SvelteKit 3 migration is closed.
 - Repository initialized with `1dc2a51 initial_setup`; Phases 0 through 7 are committed separately.
 - Current backend: `db.rs`, `state.rs`, `error.rs`, `settings.rs`, `backup.rs`, `util/{dates,files,availability}.rs`, `domain/{staff,places,cleaning,incidents,reports}`, migration `0001_initial.sql`, embedded `assets/fonts/DejaVuSans.ttf`; commands for settings, startup notice, staff CRUD/absences/rest days/places, places CRUD/recommendations (date-aware), cleaning services CRUD/status/assisted assignment, incidents CRUD/status, reports queries (`services_by_staff`, `average_times`, `absences_by_month`, `daily_sheet`), exports (`export_csv`, `export_xlsx`, `export_pdf`), and ZIP backup/restore (`backup_create`, `backup_restore`).
-- Current frontend: AppShell/Sidebar with light/dark theme, Tablero diario (`/`, `DailyBoard.svelte`, `IncidentForm.svelte`), Personal (`/staff`), Lugares (`/places`), Servicios (`/cleaning`), Incidencias (`/incidents`), Reportes (`/reports` with CSV/XLSX/PDF export), and Ajustes (`/settings` with recommendation windows and ZIP backup/restore); `labels.ts`, `errors.ts`, `types.ts`, `format.ts` and design tokens in place.
+- Current frontend: AppShell/Sidebar with light/dark theme, back/forward navigation arrows, Ayuda link and no local-data notice, Tablero diario (`/`, `DailyBoard.svelte`, `IncidentForm.svelte`), Personal (`/staff`), Lugares (`/places`), Servicios (`/cleaning`), Incidencias (`/incidents`), Reportes (`/reports` with CSV/XLSX/PDF export), Ayuda (`/help`) and Ajustes (`/settings` with recommendation windows and ZIP backup/restore); all create/edit flows use the reusable `Modal.svelte`; `labels.ts`, `errors.ts`, `types.ts`, `format.ts` and design tokens in place.
 - Data lives in `app_data_dir()/housekeeping.db` with photos under `app_data_dir()/photos/`.
 
 ---
@@ -133,6 +133,7 @@ src/
     incidents/
     reports/
     settings/
+    help/                     # user documentation page
   lib/
     api/
       types.ts                # TS DTOs (mirror of Rust, in English)
@@ -152,14 +153,17 @@ src/
       settingsService.svelte.ts
       themeService.svelte.ts
       dateService.svelte.ts
+      navigationService.svelte.ts
     components/
       AppShell.svelte
       Sidebar.svelte
       ThemeToggle.svelte
       Avatar.svelte
+      Modal.svelte            # reusable modal (Esc, backdrop, dirty guard)
       StaffForm.svelte
       PlaceForm.svelte
       ServiceForm.svelte
+      CompleteServiceForm.svelte
       DailyBoard.svelte
       AvailabilityList.svelte
       IncidentForm.svelte
@@ -206,6 +210,9 @@ static/
 - `themeService` handles light/dark theme; `settingsService` is the only service that interacts with the `settings` table.
 - `exportService` and `backupService` open dialogs and call Rust.
 - `dateService` holds the board's active date.
+- `navigationService` tracks visited routes for the sidebar back/forward arrows and delegates to `history.back()`/`forward()`.
+- **Modals:** all create/edit flows use `Modal.svelte` (native `<dialog>`), never inline forms. Forms receive `formId`, expose `dirty` as `$bindable`, and the submit button lives in the modal footer via `form={formId}`. `Esc`/backdrop only close when clean; X/Cancel always close explicitly.
+- **List concurrency:** every list `load()` uses a monotonically increasing request token and discards stale responses so a post-create reload cannot be overwritten by an earlier request.
 - Date formatting: `Intl.DateTimeFormat('es-UY', ...)`.
 - Theme: `[data-theme="light"]` / `[data-theme="dark"]` on `<html>`, persisted in `localStorage` (`housekeeping-theme`).
 - Minimal script in `app.html` to avoid FOUC.

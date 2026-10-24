@@ -19,6 +19,7 @@
   import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
   import EmptyState from '#lib/components/EmptyState.svelte';
   import FormField from '#lib/components/FormField.svelte';
+  import Modal from '#lib/components/Modal.svelte';
   import StaffForm from '#lib/components/StaffForm.svelte';
   import Toast from '#lib/components/Toast.svelte';
   import { staffService } from '#lib/services/staffService.svelte.js';
@@ -34,6 +35,7 @@
   let seasonalFilter = $state<'all' | 'seasonal' | 'permanent'>('all');
 
   let showForm = $state(false);
+  let staffFormDirty = $state(false);
   let editingStaff = $state<Staff | null>(null);
   let deactivatingStaff = $state<Staff | null>(null);
 
@@ -108,20 +110,31 @@
     return null;
   });
 
+  const absenceDirty = $derived(
+    editingAbsence !== null ||
+      absenceType !== 'medical_certificate' ||
+      absenceStart !== todayIso() ||
+      absenceEnd !== todayIso() ||
+      absenceReason.trim() !== ''
+  );
+
   function openCreateForm(): void {
     editingStaff = null;
+    staffFormDirty = false;
     showForm = true;
     staffService.error = null;
   }
 
   function openEditForm(member: Staff): void {
     editingStaff = member;
+    staffFormDirty = false;
     showForm = true;
     staffService.error = null;
   }
 
   function closeForm(): void {
     showForm = false;
+    staffFormDirty = false;
     editingStaff = null;
     staffService.error = null;
   }
@@ -204,6 +217,12 @@
     absenceSubmitted = false;
   }
 
+  function closeAbsenceManager(): void {
+    managingAbsencesFor = null;
+    staffService.error = null;
+    resetAbsenceForm();
+  }
+
   function startEditAbsence(absence: Absence): void {
     editingAbsence = absence;
     absenceType = absence.type;
@@ -258,23 +277,7 @@
       }
     }
   }
-
-  function handleWindowKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape' || deactivatingStaff !== null) {
-      return;
-    }
-    if (managingAbsencesFor) {
-      managingAbsencesFor = null;
-      staffService.error = null;
-      return;
-    }
-    if (showForm) {
-      closeForm();
-    }
-  }
 </script>
-
-<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Personal · Gestión de Limpieza</title>
@@ -301,33 +304,40 @@
 <Toast message={toastMessage} tone={toastTone} ondismiss={() => (toastMessage = null)} />
 
 {#if showForm}
-  <StaffForm
-    initial={editingStaff}
-    availableApartments={staffService.availableApartments}
+  <Modal
+    open={showForm}
+    title={editingStaff ? 'Editar funcionario' : 'Nuevo funcionario'}
+    description="Cargá los datos personales, el rol, los días de descanso y los apartamentos principales."
+    size="lg"
+    formId="staff-form"
+    submitLabel={editingStaff ? 'Guardar cambios' : 'Crear funcionario'}
     busy={staffService.saving}
-    error={staffService.error}
-    onsubmit={handleFormSubmit}
-    oncancel={closeForm}
-  />
+    dirty={staffFormDirty}
+    onclose={closeForm}
+  >
+    <StaffForm
+      formId="staff-form"
+      initial={editingStaff}
+      availableApartments={staffService.availableApartments}
+      busy={staffService.saving}
+      error={staffService.error}
+      bind:dirty={staffFormDirty}
+      onsubmit={handleFormSubmit}
+    />
+  </Modal>
 {/if}
 
 {#if managingAbsencesFor}
   {@const currentAbsences = staffService.absencesFor(managingAbsencesFor.id)}
-  <section class="absence-panel panel" aria-label="Gestión de ausencias">
-    <div class="absence-header">
-      <div>
-        <h2>Ausencias de {managingAbsencesFor.first_name} {managingAbsencesFor.last_name}</h2>
-        <p>Registrá certificaciones médicas, licencias o faltas puntuales sin superposiciones.</p>
-      </div>
-      <button
-        type="button"
-        class="button button-secondary"
-        onclick={() => (managingAbsencesFor = null)}
-      >
-        Cerrar panel
-      </button>
-    </div>
-
+  <Modal
+    open={true}
+    title={`Ausencias de ${managingAbsencesFor.first_name} ${managingAbsencesFor.last_name}`}
+    description="Registrá certificaciones médicas, licencias o faltas puntuales sin superposiciones."
+    size="lg"
+    busy={staffService.saving}
+    dirty={absenceDirty}
+    onclose={closeAbsenceManager}
+  >
     <form class="absence-form" onsubmit={handleAbsenceSubmit}>
       <div class="absence-fields">
         <FormField id="absence-type" label="Tipo de ausencia" required>
@@ -408,7 +418,7 @@
         {/each}
       </ul>
     {/if}
-  </section>
+  </Modal>
 {/if}
 
 <section class="filters panel" aria-label="Filtros de personal">
@@ -761,32 +771,8 @@
     border-top: 1px solid var(--color-line);
   }
 
-  .absence-panel {
-    padding: var(--space-5);
-    margin-bottom: var(--space-5);
-  }
-
-  .absence-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .absence-header h2 {
-    font-size: var(--text-xl);
-  }
-
-  .absence-header p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-muted);
-    font-size: var(--text-sm);
-  }
-
   .absence-form {
-    padding: var(--space-4) 0;
+    padding: 0 0 var(--space-4);
     border-bottom: 1px solid var(--color-line);
   }
 

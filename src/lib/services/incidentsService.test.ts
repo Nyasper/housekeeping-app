@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 import { makeIncident } from '#lib/testing/factories.js';
+import type { Incident } from '#lib/api/types.js';
 import { invokeMock } from '#lib/testing/tauriMocks.js';
 
 mock.module('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
@@ -57,6 +58,29 @@ describe('IncidentsService.load', () => {
     expect(invokeMock).toHaveBeenLastCalledWith('incidents_list', {
       filters: { status: 'resolved' }
     });
+  });
+
+  test('ignores a stale response that resolves after a newer load', async () => {
+    const stale = makeIncident({ id: 1, description: 'Vieja' });
+    const fresh = makeIncident({ id: 2, description: 'Nueva' });
+    let resolveStale: (incidents: Incident[]) => void = () => {};
+    invokeMock.mockImplementationOnce(
+      () =>
+        new Promise<Incident[]>((resolve) => {
+          resolveStale = resolve;
+        })
+    );
+    invokeMock.mockResolvedValueOnce([fresh]);
+    const service = new IncidentsService();
+
+    const firstLoad = service.load({ status: 'open' });
+    const secondLoad = service.load({ status: 'open' });
+    await secondLoad;
+    resolveStale([stale]);
+    await firstLoad;
+
+    expect(service.items).toEqual([fresh]);
+    expect(service.loading).toBe(false);
   });
 
   test('stores the translated error when loading fails', async () => {

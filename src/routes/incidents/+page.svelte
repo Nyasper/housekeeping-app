@@ -18,6 +18,7 @@
   } from '#lib/api/types.js';
   import EmptyState from '#lib/components/EmptyState.svelte';
   import IncidentForm from '#lib/components/IncidentForm.svelte';
+  import Modal from '#lib/components/Modal.svelte';
   import Toast from '#lib/components/Toast.svelte';
   import { cleaningService } from '#lib/services/cleaningService.svelte.js';
   import { dateService } from '#lib/services/dateService.svelte.js';
@@ -35,6 +36,7 @@
   let debouncedSearch = $state('');
 
   let showForm = $state(false);
+  let incidentFormDirty = $state(false);
   let formServiceDate = $state(dateService.selectedDate);
   let previewIncident = $state<Incident | null>(null);
 
@@ -115,9 +117,13 @@
   const resolvedCount = $derived(
     filteredIncidents.filter((inc) => inc.status === 'resolved').length
   );
+  const hasEligibleServices = $derived(
+    cleaningService.items.some((service) => service.status !== 'cancelled')
+  );
 
   async function openCreateForm(): Promise<void> {
     formServiceDate = dateFilter.trim() || dateService.selectedDate;
+    incidentFormDirty = false;
     await cleaningService.loadByDate(formServiceDate);
     incidentsService.error = null;
     showForm = true;
@@ -125,6 +131,7 @@
 
   function closeForm(): void {
     showForm = false;
+    incidentFormDirty = false;
     incidentsService.error = null;
   }
 
@@ -138,7 +145,7 @@
   async function handleCreateIncident(input: IncidentInput): Promise<void> {
     const created = await incidentsService.create(input);
     if (created) {
-      showForm = false;
+      closeForm();
       toastTone = 'success';
       toastMessage = `Incidencia registrada en ${created.place_name}.`;
       await loadIncidents();
@@ -191,39 +198,7 @@
     }
     return null;
   }
-
-  function handleWindowKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape') {
-      return;
-    }
-    if (previewIncident) {
-      previewIncident = null;
-      return;
-    }
-    if (showForm) {
-      closeForm();
-    }
-  }
-
-  function syncPhotoDialog(node: HTMLDialogElement) {
-    if (!node.open) {
-      node.showModal();
-    }
-  }
-
-  function handleDialogCancel(event: Event): void {
-    event.preventDefault();
-    previewIncident = null;
-  }
-
-  function handleDialogBackdropClick(event: MouseEvent): void {
-    if (event.target === event.currentTarget) {
-      previewIncident = null;
-    }
-  }
 </script>
-
-<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Incidencias · Gestión de Limpieza</title>
@@ -248,8 +223,19 @@
 <Toast message={toastMessage} tone={toastTone} ondismiss={() => (toastMessage = null)} />
 
 {#if showForm}
-  <section class="form-date-bar panel" aria-label="Fecha del servicio para la incidencia">
-    <div class="form-date-inner">
+  <Modal
+    open={showForm}
+    title="Registrar incidencia"
+    description="Asociá la incidencia a un servicio de limpieza y detallá lo ocurrido."
+    size="lg"
+    formId="incident-form"
+    submitLabel="Registrar incidencia"
+    submitDisabled={!hasEligibleServices}
+    busy={incidentsService.saving}
+    dirty={incidentFormDirty}
+    onclose={closeForm}
+  >
+    <div class="form-date-bar">
       <div>
         <strong>Fecha del servicio a asociar</strong>
         <p>Elegí la fecha para listar los servicios de limpieza disponibles.</p>
@@ -262,16 +248,17 @@
         onchange={(e) => handleFormDateChange((e.currentTarget as HTMLInputElement).value)}
       />
     </div>
-  </section>
 
-  <IncidentForm
-    services={cleaningService.items}
-    defaultDate={formServiceDate}
-    busy={incidentsService.saving}
-    error={incidentsService.error}
-    onsubmit={handleCreateIncident}
-    oncancel={closeForm}
-  />
+    <IncidentForm
+      formId="incident-form"
+      services={cleaningService.items}
+      defaultDate={formServiceDate}
+      busy={incidentsService.saving}
+      error={incidentsService.error}
+      bind:dirty={incidentFormDirty}
+      onsubmit={handleCreateIncident}
+    />
+  </Modal>
 {/if}
 
 <section class="toolbar panel" aria-label="Filtros de incidencias">
@@ -468,29 +455,18 @@
   </div>
 {/if}
 
-{#if previewIncident}
-  {@const modalSrc = resolvePhotoSrc(previewIncident.photo_url)}
-  {#if modalSrc}
-    <dialog
-      class="photo-modal panel"
-      aria-label={`Foto de incidencia en ${previewIncident.place_name}`}
-      oncancel={handleDialogCancel}
-      onclick={handleDialogBackdropClick}
-      {@attach syncPhotoDialog}
-    >
-      <div class="photo-modal-header">
-        <div>
-          <h2>{previewIncident.place_name} · {labelOf(incidentTypeLabels, previewIncident.type)}</h2>
-          <p>{previewIncident.description}</p>
-        </div>
-        <button
-          type="button"
-          class="button button-secondary button-sm"
-          onclick={() => (previewIncident = null)}
-        >
-          Cerrar
-        </button>
-      </div>
+<Modal
+  open={previewIncident !== null}
+  title={previewIncident
+    ? `${previewIncident.place_name} · ${labelOf(incidentTypeLabels, previewIncident.type)}`
+    : 'Foto de incidencia'}
+  description={previewIncident?.description ?? ''}
+  size="lg"
+  onclose={() => (previewIncident = null)}
+>
+  {#if previewIncident}
+    {@const modalSrc = resolvePhotoSrc(previewIncident.photo_url)}
+    {#if modalSrc}
       <div class="photo-modal-body">
         <img
           src={modalSrc}
@@ -498,25 +474,25 @@
           class="photo-modal-img"
         />
       </div>
-    </dialog>
+    {/if}
   {/if}
-{/if}
+</Modal>
 
 <style>
   .form-date-bar {
-    padding: var(--space-4) var(--space-5);
-    margin-bottom: var(--space-4);
-  }
-
-  .form-date-inner {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-5);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
   }
 
-  .form-date-inner p {
+  .form-date-bar p {
     margin-top: 0.15rem;
     color: var(--color-ink-muted);
     font-size: var(--text-xs);
@@ -712,44 +688,6 @@
     font-size: var(--text-xs);
   }
 
-  .photo-modal {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-    width: min(52rem, calc(100vw - 2rem));
-    max-height: 90vh;
-    padding: var(--space-5);
-    margin: auto;
-    border: 1px solid var(--color-line);
-    color: var(--color-ink);
-    box-shadow: var(--shadow-lg);
-    overflow: auto;
-  }
-
-  .photo-modal::backdrop {
-    background: rgba(14, 21, 19, 0.72);
-    backdrop-filter: blur(2px);
-  }
-
-  .photo-modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .photo-modal-header h2 {
-    font-size: var(--text-lg);
-  }
-
-  .photo-modal-header p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-muted);
-    font-size: var(--text-sm);
-  }
-
   .photo-modal-body {
     display: flex;
     justify-content: center;
@@ -757,7 +695,7 @@
 
   .photo-modal-img {
     max-width: 100%;
-    max-height: 68vh;
+    max-height: 62vh;
     border-radius: var(--radius-md);
     object-fit: contain;
   }

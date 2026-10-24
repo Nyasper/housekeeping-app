@@ -1,5 +1,6 @@
 <script lang="ts">
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+  import { untrack } from 'svelte';
 
   import { isTauriRuntime } from '#lib/api/invoke.js';
   import {
@@ -17,23 +18,25 @@
   import FormField from './FormField.svelte';
 
   interface Props {
+    formId: string;
     services: CleaningService[];
     initialServiceId?: number | null;
     defaultDate: string;
     busy?: boolean;
     error?: string | null;
+    dirty?: boolean;
     onsubmit: (input: IncidentInput) => Promise<void> | void;
-    oncancel: () => void;
   }
 
   let {
+    formId,
     services,
     initialServiceId = null,
     defaultDate,
     busy = false,
     error = null,
-    onsubmit,
-    oncancel
+    dirty = $bindable(false),
+    onsubmit
   }: Props = $props();
 
   const incidentTypeOptions = toOptions(incidentTypeLabels);
@@ -54,6 +57,26 @@
   let description = $state('');
   let photoSourcePath = $state<string | null>(null);
   let submitted = $state(false);
+
+  const baseline = untrack(() => ({
+    serviceId,
+    incidentType,
+    date,
+    description,
+    photoSourcePath
+  }));
+
+  const isDirty = $derived(
+    serviceId !== baseline.serviceId ||
+      incidentType !== baseline.incidentType ||
+      date !== baseline.date ||
+      description !== baseline.description ||
+      photoSourcePath !== baseline.photoSourcePath
+  );
+
+  $effect(() => {
+    dirty = isDirty;
+  });
 
   const serviceError = $derived(
     submitted && !serviceId
@@ -126,20 +149,7 @@
   }
 </script>
 
-<form class="incident-form panel" onsubmit={handleSubmit} aria-busy={busy}>
-  <div class="form-header">
-    <div>
-      <h2>Registrar incidencia</h2>
-      <p>
-        Anotá daños, objetos olvidados o faltantes de insumos detectados durante o después de una
-        limpieza.
-      </p>
-    </div>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cerrar
-    </button>
-  </div>
-
+<form id={formId} class="incident-form" onsubmit={handleSubmit} aria-busy={busy}>
   {#if eligibleServices.length === 0}
     <p class="empty-services" role="status">
       No hay servicios no cancelados en esta fecha sobre los cuales registrar una incidencia. Creá
@@ -234,19 +244,6 @@
   {#if error}
     <div class="form-alert" role="alert">{error}</div>
   {/if}
-
-  <div class="form-actions">
-    <button
-      type="submit"
-      class="button button-primary"
-      disabled={busy || eligibleServices.length === 0}
-    >
-      {busy ? 'Guardando…' : 'Registrar incidencia'}
-    </button>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cancelar
-    </button>
-  </div>
 </form>
 
 <style>
@@ -254,27 +251,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
-    padding: var(--space-6);
-    margin-bottom: var(--space-6);
-  }
-
-  .form-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .form-header h2 {
-    font-size: var(--text-xl);
-  }
-
-  .form-header p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-muted);
-    font-size: var(--text-sm);
   }
 
   .empty-services {
@@ -338,14 +314,6 @@
     background: var(--color-danger-soft);
     color: var(--color-ink);
     font-size: var(--text-sm);
-  }
-
-  .form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--color-line);
   }
 
   @media (max-width: 900px) {

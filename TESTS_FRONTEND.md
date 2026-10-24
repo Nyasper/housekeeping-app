@@ -42,22 +42,22 @@ bun test src/lib/utils/format.test.ts
 
 | Área | Archivo | Tests |
 |------|---------|------:|
-| Utilidades | `src/lib/utils/format.test.ts` | 26 |
+| Utilidades | `src/lib/utils/format.test.ts` | 27 |
 | API y errores | `src/lib/api/errors.test.ts` | 10 |
 | API y errores | `src/lib/api/labels.test.ts` | 6 |
 | API y errores | `src/lib/api/invoke.test.ts` | 7 |
 | Fecha | `src/lib/services/dateService.test.ts` | 8 |
 | Personal | `src/lib/services/staffService.test.ts` | 10 |
 | Personal | `src/lib/services/staffServiceCrud.test.ts` | 11 |
-| Lugares | `src/lib/services/placesService.test.ts` | 10 |
-| Limpieza | `src/lib/services/cleaningService.test.ts` | 11 |
-| Incidencias | `src/lib/services/incidentsService.test.ts` | 8 |
+| Lugares | `src/lib/services/placesService.test.ts` | 11 |
+| Limpieza | `src/lib/services/cleaningService.test.ts` | 13 |
+| Incidencias | `src/lib/services/incidentsService.test.ts` | 9 |
 | Reportes | `src/lib/services/reportsService.test.ts` | 10 |
 | Ajustes | `src/lib/services/settingsService.test.ts` | 5 |
 | Tema | `src/lib/services/themeService.test.ts` | 9 |
 | Exportaciones | `src/lib/services/exportService.test.ts` | 12 |
-| Respaldos | `src/lib/services/backupService.test.ts` | 12 |
-| **Total** | | **155** |
+| Respaldos | `src/lib/services/backupService.test.ts` | 13 |
+| **Total** | | **161** |
 
 ---
 
@@ -95,7 +95,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 
 ## 3. Utilidades
 
-### 3.1 `src/lib/utils/format.test.ts` — 26 tests
+### 3.1 `src/lib/utils/format.test.ts` — 27 tests
 
 | Test | Qué verifica |
 |------|--------------|
@@ -216,7 +216,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `deletes an absence and refreshes the absence list` | Baja de ausencia devuelve `true` y refresca. |
 | `delete failures return false and store the error` | Error al borrar devuelve `false`, guarda el error y apaga `saving`. |
 
-### 5.4 `src/lib/services/placesService.test.ts` — 10 tests
+### 5.4 `src/lib/services/placesService.test.ts` — 11 tests
 
 | Test | Qué verifica |
 |------|--------------|
@@ -224,6 +224,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `reuses the stored reference date when no date is given` | `load()` sin fecha reutiliza la última fecha de referencia. |
 | `sends null when there is no reference date` | Sin fecha previa, el backend recibe `{ date: null }`. |
 | `stores the translated error when loading fails` | Error de carga se guarda traducido y apaga `loading`. |
+| `ignores a stale response that resolves after a newer load` | Una carga vieja que responde tarde no pisa los datos de la carga más reciente. |
 | `creates a place and reloads the list` | Alta ejecuta `places_create` y luego recarga. |
 | `updates a place and reloads the list` | Edición ejecuta `places_update` y luego recarga. |
 | `setStatusOverride maps the place fields into the update input` | El override arma el input con nombre, tipo, ubicación, fechas y notas. |
@@ -231,7 +232,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `returns the recommended task and defaults to today` | `recommendedTask` usa la fecha seleccionada o la actual. |
 | `stores errors and returns null when a mutation fails` | Error de mutación devuelve `null`, guarda el mensaje y apaga `saving`. |
 
-### 5.5 `src/lib/services/cleaningService.test.ts` — 11 tests
+### 5.5 `src/lib/services/cleaningService.test.ts` — 13 tests
 
 | Test | Qué verifica |
 |------|--------------|
@@ -247,7 +248,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `passes explicit times and count` | Sugerencias envían horas y cantidad explícitas. |
 | `clears suggestions and stores the error on failure` | Error de sugerencias limpia la lista, guarda el mensaje y apaga `loadingSuggestions`. |
 
-### 5.6 `src/lib/services/incidentsService.test.ts` — 8 tests
+### 5.6 `src/lib/services/incidentsService.test.ts` — 9 tests
 
 | Test | Qué verifica |
 |------|--------------|
@@ -256,6 +257,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `stores the filters and sends them to the backend` | `load(filters)` guarda y envía los filtros. |
 | `reuses the last filters when none are given` | `load()` sin filtros reutiliza los últimos. |
 | `stores the translated error when loading fails` | Error de carga se guarda y apaga `loading`. |
+| `ignores a stale response that resolves after a newer load` | Una carga vieja que responde tarde no pisa los datos de la carga más reciente. |
 | `creates an incident and reloads the list` | Alta ejecuta `incidents_create` y recarga. |
 | `sets the status and reloads the list` | Cambio de estado ejecuta `incidents_set_status` y recarga. |
 | `returns null and stores the error when a mutation fails` | Error de mutación devuelve `null`, guarda el mensaje y apaga `saving`. |
@@ -316,7 +318,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `reports export errors and clears the active format` | Error de `invoke` se guarda y limpia `exporting`/`activeFormat`. |
 | `clearError resets the message` | `clearError` deja `error` en `null`. |
 
-### 5.11 `src/lib/services/backupService.test.ts` — 12 tests
+### 5.11 `src/lib/services/backupService.test.ts` — 13 tests
 
 | Test | Qué verifica |
 |------|--------------|

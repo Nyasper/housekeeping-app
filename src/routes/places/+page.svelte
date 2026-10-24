@@ -16,6 +16,7 @@
   } from '#lib/api/types.js';
   import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
   import EmptyState from '#lib/components/EmptyState.svelte';
+  import Modal from '#lib/components/Modal.svelte';
   import PlaceForm from '#lib/components/PlaceForm.svelte';
   import Toast from '#lib/components/Toast.svelte';
   import { placesService } from '#lib/services/placesService.svelte.js';
@@ -31,6 +32,7 @@
   let activeFilter = $state<'active' | 'inactive' | 'all'>('active');
 
   let showForm = $state(false);
+  let placeFormDirty = $state(false);
   let editingPlace = $state<Place | null>(null);
   let deactivatingPlace = $state<Place | null>(null);
 
@@ -87,18 +89,21 @@
 
   function openCreateForm(): void {
     editingPlace = null;
+    placeFormDirty = false;
     showForm = true;
     placesService.error = null;
   }
 
   function openEditForm(place: Place): void {
     editingPlace = place;
+    placeFormDirty = false;
     showForm = true;
     placesService.error = null;
   }
 
   function closeForm(): void {
     showForm = false;
+    placeFormDirty = false;
     editingPlace = null;
     placesService.error = null;
   }
@@ -162,18 +167,7 @@
       toastMessage = placesService.error;
     }
   }
-
-  function handleWindowKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape' || deactivatingPlace !== null) {
-      return;
-    }
-    if (showForm) {
-      closeForm();
-    }
-  }
 </script>
-
-<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Lugares · Gestión de Limpieza</title>
@@ -200,13 +194,26 @@
 <Toast message={toastMessage} tone={toastTone} ondismiss={() => (toastMessage = null)} />
 
 {#if showForm}
-  <PlaceForm
-    initial={editingPlace}
+  <Modal
+    open={showForm}
+    title={editingPlace ? 'Editar lugar' : 'Nuevo lugar'}
+    description="Configurá los datos del apartamento o área común, su ubicación y las fechas de estadía si se conocen."
+    size="lg"
+    formId="place-form"
+    submitLabel={editingPlace ? 'Guardar cambios' : 'Crear lugar'}
     busy={placesService.saving}
-    error={placesService.error}
-    onsubmit={handleFormSubmit}
-    oncancel={closeForm}
-  />
+    dirty={placeFormDirty}
+    onclose={closeForm}
+  >
+    <PlaceForm
+      formId="place-form"
+      initial={editingPlace}
+      busy={placesService.saving}
+      error={placesService.error}
+      bind:dirty={placeFormDirty}
+      onsubmit={handleFormSubmit}
+    />
+  </Modal>
 {/if}
 
 <section class="filters panel" aria-label="Filtros de lugares">

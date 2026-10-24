@@ -18,16 +18,25 @@ export class CleaningServiceManager {
   saving = $state(false);
   error = $state<string | null>(null);
   lastWarning = $state<string | null>(null);
+  private requestToken = 0;
 
   async loadByDate(date: string = todayIso()): Promise<void> {
+    const token = ++this.requestToken;
     this.loading = true;
     this.error = null;
     try {
-      this.items = await call<CleaningService[]>('cleaning_list_by_date', { date });
+      const items = await call<CleaningService[]>('cleaning_list_by_date', { date });
+      if (token === this.requestToken) {
+        this.items = items;
+      }
     } catch (cause) {
-      this.error = errorMessage(cause);
+      if (token === this.requestToken) {
+        this.error = errorMessage(cause);
+      }
     } finally {
-      this.loading = false;
+      if (token === this.requestToken) {
+        this.loading = false;
+      }
     }
   }
 

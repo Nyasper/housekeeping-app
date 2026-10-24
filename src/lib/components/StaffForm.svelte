@@ -1,5 +1,6 @@
 <script lang="ts">
   import { open as openFileDialog } from '@tauri-apps/plugin-dialog';
+  import { untrack } from 'svelte';
 
   import { isTauriRuntime } from '#lib/api/invoke.js';
   import {
@@ -19,25 +20,27 @@
   import FormField from './FormField.svelte';
 
   interface Props {
+    formId: string;
     initial?: Staff | null;
     availableApartments: PlaceSummary[];
     busy?: boolean;
     error?: string | null;
+    dirty?: boolean;
     onsubmit: (payload: {
       input: StaffInput;
       restDays: number[];
       mainPlaceIds: number[];
     }) => Promise<void> | void;
-    oncancel: () => void;
   }
 
   let {
+    formId,
     initial = null,
     availableApartments,
     busy = false,
     error = null,
-    onsubmit,
-    oncancel
+    dirty = $bindable(false),
+    onsubmit
   }: Props = $props();
 
   const genderOptions = toOptions(genderLabels);
@@ -59,7 +62,51 @@
   let mainPlaceIds = $derived<number[]>(initial ? initial.main_places.map((p) => p.id) : []);
   let photoSourcePath = $derived<string | null>(initial ? null : null);
   let removePhoto = $derived(Boolean(initial && false));
-  let submitted = $derived(Boolean(initial && false));
+  let submitted = $state(false);
+
+  const baseline = untrack(() => ({
+    firstName,
+    lastName,
+    nationalId,
+    birthDate,
+    phone,
+    address,
+    gender,
+    role,
+    isSeasonal,
+    seasonStartDate,
+    seasonEndDate,
+    notes,
+    restDays: [...restDays],
+    mainPlaceIds: [...mainPlaceIds]
+  }));
+
+  function sameSelection(left: number[], right: number[]): boolean {
+    return left.length === right.length && left.every((value) => right.includes(value));
+  }
+
+  const isDirty = $derived(
+    firstName !== baseline.firstName ||
+      lastName !== baseline.lastName ||
+      nationalId !== baseline.nationalId ||
+      birthDate !== baseline.birthDate ||
+      phone !== baseline.phone ||
+      address !== baseline.address ||
+      gender !== baseline.gender ||
+      role !== baseline.role ||
+      isSeasonal !== baseline.isSeasonal ||
+      seasonStartDate !== baseline.seasonStartDate ||
+      seasonEndDate !== baseline.seasonEndDate ||
+      notes !== baseline.notes ||
+      !sameSelection(restDays, baseline.restDays) ||
+      !sameSelection(mainPlaceIds, baseline.mainPlaceIds) ||
+      photoSourcePath !== null ||
+      removePhoto
+  );
+
+  $effect(() => {
+    dirty = isDirty;
+  });
 
   const firstNameError = $derived(
     submitted && !firstName.trim() ? 'Ingresá el nombre del funcionario.' : null
@@ -170,19 +217,7 @@
   }
 </script>
 
-<form class="staff-form panel" onsubmit={handleSubmit} aria-busy={busy}>
-  <div class="form-header">
-    <div>
-      <h2>{initial ? 'Editar funcionario' : 'Nuevo funcionario'}</h2>
-      <p>
-        Cargá los datos personales, el rol, los días de descanso y los apartamentos principales.
-      </p>
-    </div>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cerrar
-    </button>
-  </div>
-
+<form id={formId} class="staff-form" onsubmit={handleSubmit} aria-busy={busy}>
   <div class="photo-row">
     <Avatar
       photoUrl={previewPhotoUrl}
@@ -384,15 +419,6 @@
   {#if error}
     <div class="form-alert" role="alert">{error}</div>
   {/if}
-
-  <div class="form-actions">
-    <button type="submit" class="button button-primary" disabled={busy}>
-      {busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Crear funcionario'}
-    </button>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cancelar
-    </button>
-  </div>
 </form>
 
 <style>
@@ -400,27 +426,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
-    padding: var(--space-6);
-    margin-bottom: var(--space-6);
-  }
-
-  .form-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .form-header h2 {
-    font-size: var(--text-xl);
-  }
-
-  .form-header p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-muted);
-    font-size: var(--text-sm);
   }
 
   .photo-row {
@@ -535,13 +540,5 @@
     background: var(--color-danger-soft);
     color: var(--color-ink);
     font-size: var(--text-sm);
-  }
-
-  .form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--color-line);
   }
 </style>

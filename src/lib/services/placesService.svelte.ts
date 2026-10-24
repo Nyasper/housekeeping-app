@@ -14,21 +14,30 @@ export class PlacesService {
   saving = $state(false);
   error = $state<string | null>(null);
   referenceDate = $state<string | null>(null);
+  private requestToken = 0;
 
   async load(date?: string): Promise<void> {
     if (date !== undefined) {
       this.referenceDate = date;
     }
+    const token = ++this.requestToken;
     this.loading = true;
     this.error = null;
     try {
-      this.items = await call<Place[]>('places_list', {
+      const items = await call<Place[]>('places_list', {
         date: this.referenceDate ?? null
       });
+      if (token === this.requestToken) {
+        this.items = items;
+      }
     } catch (cause) {
-      this.error = errorMessage(cause);
+      if (token === this.requestToken) {
+        this.error = errorMessage(cause);
+      }
     } finally {
-      this.loading = false;
+      if (token === this.requestToken) {
+        this.loading = false;
+      }
     }
   }
 

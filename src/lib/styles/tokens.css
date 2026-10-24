@@ -296,9 +296,19 @@ input[type='checkbox'] {
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-ink);
+  caret-color: var(--color-ink);
   transition:
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
+}
+
+input,
+textarea {
+  caret-color: var(--color-ink);
+}
+
+body:has(dialog[open]) {
+  overflow: hidden;
 }
 
 .input:hover {

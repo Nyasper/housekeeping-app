@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Back and forward navigation arrows in the sidebar, backed by a lightweight in-app history stack.
+- Reusable accessible `Modal` component with focus handling, Escape/backdrop dismissal, scroll locking, and a dirty-state guard that prevents accidental data loss.
+- User help page at `/help`, reachable from an "Ayuda" button in the sidebar footer.
+
+### Changed
+
+- Creating and editing staff, places, cleaning services, and incidents now happens in modals instead of inline panels that pushed content down the page.
+- Service completion and the incident photo preview now use the shared modal.
+- The native webview right-click context menu is disabled across the app.
+- Removed the local-data notice from the sidebar footer.
+
 ### Fixed
 
+- List screens no longer show stale or empty data after creating the first record; late responses from previous requests are ignored.
+- Input text carets stay visible in both themes when hovering or focusing fields.
 - Places and cleaning screens now reload date-aware recommendations for the selected date instead of reusing the last daily-board date.
 - Cleaning service forms now show inactive assigned staff so they can be removed or reassigned.
 - Cancelled services can now be reopened from the edit form with explicit confirmation.

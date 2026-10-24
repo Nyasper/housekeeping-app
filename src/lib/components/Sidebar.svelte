@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
 
+  import { navigationService } from '#lib/services/navigationService.svelte.js';
   import ThemeToggle from './ThemeToggle.svelte';
 
   const links = [
@@ -32,6 +33,45 @@
       <span class="brand-tagline">Gestión del edificio</span>
     </span>
   </a>
+
+  <div class="nav-history" aria-label="Historial de navegación">
+    <button
+      type="button"
+      class="history-button"
+      onclick={() => navigationService.goBack()}
+      disabled={!navigationService.canGoBack}
+      aria-label="Atrás"
+      title="Atrás"
+    >
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M14.5 5.5 8 12l6.5 6.5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+    <button
+      type="button"
+      class="history-button"
+      onclick={() => navigationService.goForward()}
+      disabled={!navigationService.canGoForward}
+      aria-label="Adelante"
+      title="Adelante"
+    >
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M9.5 5.5 16 12l-6.5 6.5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+  </div>
 
   <nav aria-label="Navegación principal">
     <ul class="nav-list">
@@ -126,10 +166,24 @@
 
   <div class="sidebar-footer">
     <ThemeToggle />
-    <p class="offline-note">
-      <span class="status-dot" aria-hidden="true"></span>
-      Todos los datos quedan en este equipo.
-    </p>
+    <a
+      href="/help"
+      class={['help-link', { 'is-active': pathname === '/help' }]}
+      aria-current={pathname === '/help' ? 'page' : undefined}
+    >
+      <span class="help-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="8.2" stroke="currentColor" stroke-width="1.7" />
+          <path
+            d="M9.7 9.3a2.4 2.4 0 0 1 4.7.6c0 1.7-2.4 1.9-2.4 3.5m0 2.9v.2"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+          />
+        </svg>
+      </span>
+      <span class="help-label">Ayuda</span>
+    </a>
   </div>
 </aside>
 
@@ -257,6 +311,44 @@
     height: 100%;
   }
 
+  .nav-history {
+    display: flex;
+    gap: var(--space-2);
+    padding: 0 var(--space-1);
+  }
+
+  .history-button {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.35rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-ink-soft);
+    transition:
+      background-color var(--transition-fast),
+      border-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+
+  .history-button:hover:not(:disabled) {
+    border-color: var(--color-line-strong);
+    background: var(--color-surface-muted);
+    color: var(--color-ink);
+  }
+
+  .history-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .history-button svg {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
   .sidebar-footer {
     display: flex;
     flex-direction: column;
@@ -264,22 +356,46 @@
     margin-top: auto;
   }
 
-  .offline-note {
-    display: flex;
+  .help-link {
+    display: inline-flex;
+    min-height: 2.75rem;
     align-items: center;
-    gap: var(--space-2);
-    padding: 0 var(--space-2);
-    color: var(--color-ink-muted);
-    font-size: var(--text-xs);
-    line-height: 1.4;
+    gap: var(--space-3);
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-ink-soft);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    transition:
+      background-color var(--transition-fast),
+      border-color var(--transition-fast),
+      color var(--transition-fast);
   }
 
-  .status-dot {
+  .help-link:hover {
+    border-color: var(--color-line-strong);
+    background: var(--color-surface-muted);
+    color: var(--color-ink);
+  }
+
+  .help-link.is-active {
+    border-color: var(--color-primary);
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+  }
+
+  .help-icon {
+    display: inline-flex;
     flex: none;
-    width: 0.4rem;
-    height: 0.4rem;
-    border-radius: 50%;
-    background: var(--color-success);
+    width: 1.2rem;
+    height: 1.2rem;
+  }
+
+  .help-icon svg {
+    width: 100%;
+    height: 100%;
   }
 
   @media (max-width: 900px) {
@@ -312,6 +428,16 @@
       width: 100%;
     }
 
+    .nav-history {
+      order: 2;
+      flex: none;
+    }
+
+    .history-button {
+      flex: none;
+      width: 2.5rem;
+    }
+
     .nav-list {
       flex-direction: row;
     }
@@ -326,11 +452,17 @@
 
     .sidebar-footer {
       order: 2;
+      flex-flow: row wrap;
       margin-top: 0;
       margin-left: auto;
     }
 
-    .offline-note {
+    .help-link {
+      width: auto;
+      padding: 0.55rem;
+    }
+
+    .help-label {
       display: none;
     }
   }

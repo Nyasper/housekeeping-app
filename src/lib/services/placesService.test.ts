@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, setSystemTime, afterEach, test } from 'bun:test';
 
 import { makePlace } from '#lib/testing/factories.js';
+import type { Place } from '#lib/api/types.js';
 import { invokeMock } from '#lib/testing/tauriMocks.js';
 
 mock.module('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
@@ -57,6 +58,29 @@ describe('PlacesService.load', () => {
     await service.load('2026-10-21');
 
     expect(service.error).toBe('Falló la consulta.');
+    expect(service.loading).toBe(false);
+  });
+
+  test('ignores a stale response that resolves after a newer load', async () => {
+    const stale = makePlace({ id: 1, name: 'Apto viejo' });
+    const fresh = makePlace({ id: 2, name: 'Apto nuevo' });
+    let resolveStale: (places: Place[]) => void = () => {};
+    invokeMock.mockImplementationOnce(
+      () =>
+        new Promise<Place[]>((resolve) => {
+          resolveStale = resolve;
+        })
+    );
+    invokeMock.mockResolvedValueOnce([fresh]);
+    const service = new PlacesService();
+
+    const firstLoad = service.load('2026-10-21');
+    const secondLoad = service.load('2026-10-21');
+    await secondLoad;
+    resolveStale([stale]);
+    await firstLoad;
+
+    expect(service.items).toEqual([fresh]);
     expect(service.loading).toBe(false);
   });
 });

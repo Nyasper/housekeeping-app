@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+
   import {
     labelOf,
     serviceStatusLabels,
@@ -19,6 +21,7 @@
   import FormField from './FormField.svelte';
 
   interface Props {
+    formId: string;
     initial?: CleaningService | null;
     initialPlaceId?: number | null;
     initialServiceType?: ServiceType | null;
@@ -29,6 +32,7 @@
     loadingSuggestions?: boolean;
     busy?: boolean;
     error?: string | null;
+    dirty?: boolean;
     onrequestsuggestions: (params: {
       placeId: number;
       serviceType: ServiceType;
@@ -40,10 +44,10 @@
       input: CleaningServiceInput;
       confirmReopen: boolean;
     }) => Promise<void> | void;
-    oncancel: () => void;
   }
 
   let {
+    formId,
     initial = null,
     initialPlaceId = null,
     initialServiceType = null,
@@ -54,9 +58,9 @@
     loadingSuggestions = false,
     busy = false,
     error = null,
+    dirty = $bindable(false),
     onrequestsuggestions,
-    onsubmit,
-    oncancel
+    onsubmit
   }: Props = $props();
 
   const serviceTypeOptions = toOptions(serviceTypeLabels);
@@ -84,7 +88,39 @@
       : []
   );
   let confirmReopen = $derived(Boolean(initial && false));
-  let submitted = $derived(Boolean(initial && false));
+  let submitted = $state(false);
+
+  function staffSignature(items: ServiceStaffInput[]): string {
+    return items.map((item) => `${item.staff_id}:${item.is_lead ? 1 : 0}`).join('|');
+  }
+
+  const baseline = untrack(() => ({
+    placeId,
+    date,
+    serviceType,
+    status,
+    startTime,
+    endTime,
+    notes,
+    staff: staffSignature(selectedStaff),
+    confirmReopen
+  }));
+
+  const isDirty = $derived(
+    placeId !== baseline.placeId ||
+      date !== baseline.date ||
+      serviceType !== baseline.serviceType ||
+      status !== baseline.status ||
+      startTime !== baseline.startTime ||
+      endTime !== baseline.endTime ||
+      notes !== baseline.notes ||
+      staffSignature(selectedStaff) !== baseline.staff ||
+      confirmReopen !== baseline.confirmReopen
+  );
+
+  $effect(() => {
+    dirty = isDirty;
+  });
 
   const selectedPlace = $derived(places.find((p) => p.id === placeId) ?? null);
   const isCompletedService = $derived(initial?.status === 'completed');
@@ -194,25 +230,14 @@
 </script>
 
 <form
-  class="service-form panel"
+  id={formId}
+  class="service-form"
   {@attach () => {
     triggerSuggestions();
   }}
   onsubmit={handleSubmit}
   aria-busy={busy}
 >
-  <div class="form-header">
-    <div>
-      <h2>{initial ? 'Editar servicio de limpieza' : 'Nuevo servicio de limpieza'}</h2>
-      <p>
-        Seleccioná el lugar, el tipo de tarea, el horario y al menos un funcionario disponible.
-      </p>
-    </div>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cerrar
-    </button>
-  </div>
-
   <div class="grid-two">
     <FormField id="service-place" label="Lugar" required error={placeError}>
       <select
@@ -344,15 +369,6 @@
   {#if error}
     <div class="form-alert" role="alert">{error}</div>
   {/if}
-
-  <div class="form-actions">
-    <button type="submit" class="button button-primary" disabled={busy || activePlaces.length === 0}>
-      {busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Crear servicio'}
-    </button>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cancelar
-    </button>
-  </div>
 </form>
 
 <style>
@@ -360,27 +376,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
-    padding: var(--space-6);
-    margin-bottom: var(--space-6);
-  }
-
-  .form-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .form-header h2 {
-    font-size: var(--text-xl);
-  }
-
-  .form-header p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-muted);
-    font-size: var(--text-sm);
   }
 
   .grid-two {
@@ -423,13 +418,5 @@
     background: var(--color-danger-soft);
     color: var(--color-ink);
     font-size: var(--text-sm);
-  }
-
-  .form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--color-line);
   }
 </style>

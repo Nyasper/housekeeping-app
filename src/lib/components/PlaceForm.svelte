@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+
   import {
     placeStatusLabels,
     placeTypeLabels,
@@ -13,14 +15,22 @@
   import FormField from './FormField.svelte';
 
   interface Props {
+    formId: string;
     initial?: Place | null;
     busy?: boolean;
     error?: string | null;
+    dirty?: boolean;
     onsubmit: (input: PlaceInput) => Promise<void> | void;
-    oncancel: () => void;
   }
 
-  let { initial = null, busy = false, error = null, onsubmit, oncancel }: Props = $props();
+  let {
+    formId,
+    initial = null,
+    busy = false,
+    error = null,
+    dirty = $bindable(false),
+    onsubmit
+  }: Props = $props();
 
   const typeOptions = toOptions(placeTypeLabels);
   const statusOptions = toOptions(placeStatusLabels);
@@ -32,7 +42,31 @@
   let checkInDate = $derived(initial?.check_in_date ?? '');
   let checkOutDate = $derived(initial?.check_out_date ?? '');
   let notes = $derived(initial?.notes ?? '');
-  let submitted = $derived(Boolean(initial && false));
+  let submitted = $state(false);
+
+  const baseline = untrack(() => ({
+    name,
+    placeType,
+    statusOverride,
+    location,
+    checkInDate,
+    checkOutDate,
+    notes
+  }));
+
+  const isDirty = $derived(
+    name !== baseline.name ||
+      placeType !== baseline.placeType ||
+      statusOverride !== baseline.statusOverride ||
+      location !== baseline.location ||
+      checkInDate !== baseline.checkInDate ||
+      checkOutDate !== baseline.checkOutDate ||
+      notes !== baseline.notes
+  );
+
+  $effect(() => {
+    dirty = isDirty;
+  });
 
   const nameError = $derived(
     submitted && !name.trim() ? 'Ingresá el nombre del apartamento o área común.' : null
@@ -70,20 +104,7 @@
   }
 </script>
 
-<form class="place-form panel" onsubmit={handleSubmit} aria-busy={busy}>
-  <div class="form-header">
-    <div>
-      <h2>{initial ? 'Editar lugar' : 'Nuevo lugar'}</h2>
-      <p>
-        Configurá los datos del apartamento o área común, su ubicación y las fechas de estadía si se
-        conocen.
-      </p>
-    </div>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cerrar
-    </button>
-  </div>
-
+<form id={formId} class="place-form" onsubmit={handleSubmit} aria-busy={busy}>
   <div class="grid-two">
     <FormField
       id="place-name"
@@ -206,15 +227,6 @@
   {#if error}
     <div class="form-alert" role="alert">{error}</div>
   {/if}
-
-  <div class="form-actions">
-    <button type="submit" class="button button-primary" disabled={busy}>
-      {busy ? 'Guardando…' : initial ? 'Guardar cambios' : 'Crear lugar'}
-    </button>
-    <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
-      Cancelar
-    </button>
-  </div>
 </form>
 
 <style>
@@ -222,27 +234,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
-    padding: var(--space-6);
-    margin-bottom: var(--space-6);
-  }
-
-  .form-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding-bottom: var(--space-4);
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .form-header h2 {
-    font-size: var(--text-xl);
-  }
-
-  .form-header p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-muted);
-    font-size: var(--text-sm);
   }
 
   .grid-two {
@@ -287,13 +278,5 @@
     background: var(--color-danger-soft);
     color: var(--color-ink);
     font-size: var(--text-sm);
-  }
-
-  .form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-3);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--color-line);
   }
 </style>

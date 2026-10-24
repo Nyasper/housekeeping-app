@@ -13,6 +13,7 @@ export class IncidentsService {
   saving = $state(false);
   error = $state<string | null>(null);
   lastFilters = $state<IncidentListFilters>({});
+  private requestToken = 0;
 
   readonly openItems = $derived(this.items.filter((incident) => incident.status === 'open'));
 
@@ -20,16 +21,24 @@ export class IncidentsService {
     if (filters !== undefined) {
       this.lastFilters = filters;
     }
+    const token = ++this.requestToken;
     this.loading = true;
     this.error = null;
     try {
-      this.items = await call<Incident[]>('incidents_list', {
+      const items = await call<Incident[]>('incidents_list', {
         filters: this.lastFilters
       });
+      if (token === this.requestToken) {
+        this.items = items;
+      }
     } catch (cause) {
-      this.error = errorMessage(cause);
+      if (token === this.requestToken) {
+        this.error = errorMessage(cause);
+      }
     } finally {
-      this.loading = false;
+      if (token === this.requestToken) {
+        this.loading = false;
+      }
     }
   }
 

@@ -17,8 +17,10 @@ export class StaffService {
   saving = $state(false);
   error = $state<string | null>(null);
   lastWarning = $state<string | null>(null);
+  private requestToken = 0;
 
   async load(): Promise<void> {
+    const token = ++this.requestToken;
     this.loading = true;
     this.error = null;
     try {
@@ -27,13 +29,19 @@ export class StaffService {
         call<Absence[]>('staff_absences_list', { staffId: null }),
         call<PlaceSummary[]>('staff_available_apartments')
       ]);
-      this.items = staffList;
-      this.absences = absenceList;
-      this.availableApartments = apartments;
+      if (token === this.requestToken) {
+        this.items = staffList;
+        this.absences = absenceList;
+        this.availableApartments = apartments;
+      }
     } catch (cause) {
-      this.error = errorMessage(cause);
+      if (token === this.requestToken) {
+        this.error = errorMessage(cause);
+      }
     } finally {
-      this.loading = false;
+      if (token === this.requestToken) {
+        this.loading = false;
+      }
     }
   }
 

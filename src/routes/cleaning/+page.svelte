@@ -14,8 +14,10 @@
     ServiceType
   } from '#lib/api/types.js';
   import Avatar from '#lib/components/Avatar.svelte';
+  import CompleteServiceForm from '#lib/components/CompleteServiceForm.svelte';
   import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
   import EmptyState from '#lib/components/EmptyState.svelte';
+  import Modal from '#lib/components/Modal.svelte';
   import ServiceForm from '#lib/components/ServiceForm.svelte';
   import Toast from '#lib/components/Toast.svelte';
   import { cleaningService } from '#lib/services/cleaningService.svelte.js';
@@ -38,9 +40,11 @@
   let typeFilter = $state<ServiceType | 'all'>('all');
 
   let showForm = $state(false);
+  let serviceFormDirty = $state(false);
   let editingService = $state<CleaningService | null>(null);
   let cancellingService = $state<CleaningService | null>(null);
   let completingService = $state<CleaningService | null>(null);
+  let completeDirty = $state(false);
   let completeStartTime = $state('09:00');
   let completeEndTime = $state('10:00');
 
@@ -115,20 +119,27 @@
     });
   });
 
+  const serviceFormHasPlaces = $derived(
+    placesService.items.some((place) => place.is_active || place.id === editingService?.place_id)
+  );
+
   function openCreateForm(): void {
     editingService = null;
+    serviceFormDirty = false;
     showForm = true;
     cleaningService.error = null;
   }
 
   function openEditForm(service: CleaningService): void {
     editingService = service;
+    serviceFormDirty = false;
     showForm = true;
     cleaningService.error = null;
   }
 
   function closeForm(): void {
     showForm = false;
+    serviceFormDirty = false;
     editingService = null;
     cleaningService.error = null;
   }
@@ -204,26 +215,32 @@
 
   function openCompletePrompt(service: CleaningService): void {
     completingService = service;
+    completeDirty = false;
     completeStartTime = service.start_time ?? '09:00';
     const current = nowTimeIso();
     completeEndTime =
       service.end_time ?? (current > completeStartTime ? current : '10:00');
   }
 
-  async function submitCompletePrompt(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
+  function closeCompletePrompt(): void {
+    completingService = null;
+    completeDirty = false;
+  }
+
+  async function submitCompletePrompt({
+    startTime,
+    endTime
+  }: {
+    startTime: string;
+    endTime: string;
+  }): Promise<void> {
     const target = completingService;
     if (!target) {
       return;
     }
-    const updated = await cleaningService.setStatus(
-      target,
-      'completed',
-      completeStartTime,
-      completeEndTime
-    );
+    const updated = await cleaningService.setStatus(target, 'completed', startTime, endTime);
     if (updated) {
-      completingService = null;
+      closeCompletePrompt();
       toastTone = 'success';
       toastMessage = `Servicio en ${target.place_name} completado.`;
     } else if (cleaningService.error) {
@@ -247,22 +264,7 @@
       toastMessage = cleaningService.error;
     }
   }
-
-  function handleWindowKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Escape' || cancellingService !== null) {
-      return;
-    }
-    if (completingService) {
-      completingService = null;
-      return;
-    }
-    if (showForm) {
-      closeForm();
-    }
-  }
 </script>
-
-<svelte:window onkeydown={handleWindowKeydown} />
 
 <svelte:head>
   <title>Servicios · Gestión de Limpieza</title>
@@ -287,53 +289,56 @@
 <Toast message={toastMessage} tone={toastTone} ondismiss={() => (toastMessage = null)} />
 
 {#if showForm}
-  <ServiceForm
-    initial={editingService}
-    defaultDate={dateService.selectedDate}
-    places={placesService.items}
-    allStaff={staffService.items}
-    suggestions={cleaningService.suggestions}
-    loadingSuggestions={cleaningService.loadingSuggestions}
+  <Modal
+    open={showForm}
+    title={editingService ? 'Editar servicio de limpieza' : 'Nuevo servicio de limpieza'}
+    description="Seleccioná el lugar, el tipo de tarea, el horario y al menos un funcionario disponible."
+    size="xl"
+    formId="service-form"
+    submitLabel={editingService ? 'Guardar cambios' : 'Crear servicio'}
+    submitDisabled={!serviceFormHasPlaces}
     busy={cleaningService.saving}
-    error={cleaningService.error}
-    onrequestsuggestions={handleRequestSuggestions}
-    onsubmit={handleFormSubmit}
-    oncancel={closeForm}
-  />
+    dirty={serviceFormDirty}
+    onclose={closeForm}
+  >
+    <ServiceForm
+      formId="service-form"
+      initial={editingService}
+      defaultDate={dateService.selectedDate}
+      places={placesService.items}
+      allStaff={staffService.items}
+      suggestions={cleaningService.suggestions}
+      loadingSuggestions={cleaningService.loadingSuggestions}
+      busy={cleaningService.saving}
+      error={cleaningService.error}
+      bind:dirty={serviceFormDirty}
+      onrequestsuggestions={handleRequestSuggestions}
+      onsubmit={handleFormSubmit}
+    />
+  </Modal>
 {/if}
 
-{#if completingService}
-  <section class="complete-panel panel" aria-label="Completar servicio">
-    <form class="complete-form" onsubmit={submitCompletePrompt}>
-      <div>
-        <h2>Completar servicio en {completingService.place_name}</h2>
-        <p>Confirmá la hora de inicio y de finalización para calcular la duración del servicio.</p>
-      </div>
-      <div class="complete-times">
-        <label>
-          <span>Hora de inicio</span>
-          <input class="input" type="time" bind:value={completeStartTime} required />
-        </label>
-        <label>
-          <span>Hora de fin</span>
-          <input class="input" type="time" bind:value={completeEndTime} required />
-        </label>
-      </div>
-      <div class="complete-actions">
-        <button type="submit" class="button button-primary" disabled={cleaningService.saving}>
-          Confirmar completado
-        </button>
-        <button
-          type="button"
-          class="button button-secondary"
-          onclick={() => (completingService = null)}
-        >
-          Cancelar
-        </button>
-      </div>
-    </form>
-  </section>
-{/if}
+<Modal
+  open={completingService !== null}
+  title={`Completar servicio en ${completingService?.place_name ?? ''}`}
+  description="Confirmá la hora de inicio y de finalización para calcular la duración del servicio."
+  size="sm"
+  formId="complete-service-form"
+  submitLabel="Confirmar completado"
+  busy={cleaningService.saving}
+  dirty={completeDirty}
+  onclose={closeCompletePrompt}
+>
+  {#if completingService}
+    <CompleteServiceForm
+      formId="complete-service-form"
+      initialStartTime={completeStartTime}
+      initialEndTime={completeEndTime}
+      bind:dirty={completeDirty}
+      onsubmit={submitCompletePrompt}
+    />
+  {/if}
+</Modal>
 
 <section class="toolbar panel" aria-label="Fecha y filtros de servicios">
   <div class="date-controls">
@@ -571,47 +576,6 @@
     font-size: var(--text-xs);
     font-weight: 650;
     color: var(--color-ink-soft);
-  }
-
-  .complete-panel {
-    padding: var(--space-5);
-    margin-bottom: var(--space-5);
-    border-color: var(--color-primary);
-  }
-
-  .complete-form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
-
-  .complete-form h2 {
-    font-size: var(--text-lg);
-  }
-
-  .complete-form p {
-    margin-top: var(--space-1);
-    color: var(--color-ink-muted);
-    font-size: var(--text-sm);
-  }
-
-  .complete-times {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-4);
-  }
-
-  .complete-times label {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    font-size: var(--text-xs);
-    font-weight: 650;
-  }
-
-  .complete-actions {
-    display: flex;
-    gap: var(--space-2);
   }
 
   .status-panel {

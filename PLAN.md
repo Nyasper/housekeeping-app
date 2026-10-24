@@ -347,11 +347,16 @@ Inspirado en `tauri-inventory-manager/src-tauri/src/inventory.rs`.
 
 **Intuitiva y fácil de usar**
 - Navegación lateral clara: Tablero, Personal, Lugares, Servicios, Incidencias, Reportes, Ajustes.
+- Flechas de atrás/adelante en la barra lateral para recorrer el historial de pantallas visitadas.
+- Botón **Ayuda** en el pie de la barra lateral, debajo del selector de tema, que abre la documentación de uso (`/help`).
 - Acción principal visible en cada pantalla; acciones destructivas con confirmación.
+- **Alta y edición de datos en modales reutilizables:** personal, lugares, servicios de limpieza, incidencias, completar servicio y vista ampliada de fotos usan el mismo componente `Modal`, sin formularios inline que desplacen el contenido.
+- Los modales se cierran con `Esc` o clic fuera solo si no hay cambios sin guardar; la X y «Cancelar» cierran siempre de forma explícita.
 - Formularios con defaults sensatos, validación inline en español y mensajes claros.
 - Estados vacío/cargando/error bien diseñados, con una acción sugerida.
 - Búsqueda y filtros accesibles; no obligar a recordar rutas o códigos.
 - Atajos básicos: `Esc` cierra modales, `Enter` envía, navegación por teclado y foco visible.
+- El menú contextual nativo del WebView está deshabilitado para evitar acciones fuera de la app.
 - Toasts para confirmar acciones y errores.
 - El tablero diario debe responder de un vistazo: qué limpiar, quién lo hace y qué está pendiente.
 
@@ -629,6 +634,7 @@ src/
     incidents/
     reports/
     settings/                  # configuración global + backup/restore
+    help/                      # documentación de uso en español
   lib/
     api/
       types.ts                 # DTOs TS (espejo de Rust, en inglés)
@@ -648,14 +654,17 @@ src/
       settingsService.svelte.ts  # exclusivo para la tabla settings
       themeService.svelte.ts
       dateService.svelte.ts      # fecha activa del tablero
+      navigationService.svelte.ts # historial de atrás/adelante
     components/
       AppShell.svelte
       Sidebar.svelte
       ThemeToggle.svelte
       Avatar.svelte
+      Modal.svelte             # modal reutilizable (Esc, backdrop, dirty guard)
       StaffForm.svelte
       PlaceForm.svelte
       ServiceForm.svelte
+      CompleteServiceForm.svelte
       DailyBoard.svelte
       AvailabilityList.svelte
       IncidentForm.svelte
@@ -751,6 +760,9 @@ export const settingsService = new SettingsService();
   ```
 - **Errores:** `errors.ts` traduce `{ code, message }` a mensajes en español; los componentes muestran el mensaje.
 - **UI/UX:** diseño moderno, consistente y de bajos clics; usar tokens; implementar estados vacío/cargando/error; validación inline; confirmaciones destructivas; foco/teclado; `prefers-reduced-motion`.
+- **Modales:** todo alta/edición usa `Modal.svelte` (diálogo nativo). El formulario recibe `formId` y el botón de envío vive en el pie del modal con `form={formId}`. Los formularios exponen `dirty` (`$bindable`) y el modal solo cierra con `Esc`/clic fuera cuando no hay cambios; la X y «Cancelar» cierran siempre.
+- **Listas y concurrencia:** cada `load()` de un servicio de listado usa un token de solicitud y descarta respuestas viejas, para que una recarga posterior a un alta nunca sea sobrescrita por una carga anterior.
+- **Navegación:** `navigationService` mantiene el historial de atrás/adelante y usa `history.back()`/`forward()`; el menú contextual nativo está deshabilitado globalmente.
 - **Rendimiento:** evitar trabajo reactivo innecesario, debounce en búsqueda y carga diferida de paneles pesados; mantener el bundle pequeño.
 - **Skills:** usar `frontend-design` y `accessibility` al diseñar o revisar UI.
 
