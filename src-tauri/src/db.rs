@@ -262,6 +262,20 @@ mod tests {
         });
     }
 
+    /// SQLx embeds migration files at compile time and checksums them. A CRLF
+    /// working copy changes those bytes, so an existing database fails to open
+    /// with "migration N was previously applied but has been modified".
+    #[test]
+    fn migrations_use_lf_line_endings() {
+        for migration in sqlx::migrate!("./migrations").iter() {
+            assert!(
+                !migration.sql.contains('\r'),
+                "migration {} contains CRLF line endings; run `git checkout -- src-tauri/migrations`",
+                migration.version
+            );
+        }
+    }
+
     #[test]
     fn valid_database_reopens_without_notice() {
         let directory = tempfile::tempdir().expect("tempdir");

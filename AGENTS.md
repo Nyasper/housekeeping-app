@@ -268,6 +268,7 @@ static/
 
 - SQLite with WAL, foreign keys, and `max_connections(1)`.
 - Versioned migrations; do not modify applied migrations.
+- Migration files must keep **LF** line endings: `sqlx::migrate!` embeds their bytes and SQLx checksums every applied migration, so a CRLF checkout makes existing databases fail to open with «migration N was previously applied but has been modified». `.gitattributes` enforces `eol=lf` and `db::tests::migrations_use_lf_line_endings` guards it. After cloning on Windows run `git checkout -- src-tauri/migrations` if the guard fails.
 - Do not copy the `.db` manually while WAL is active; use `VACUUM INTO`.
 - Schema, indexes, constraints, and persistence rules: **`PLAN.md` §4**.
 

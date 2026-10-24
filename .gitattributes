@@ -1,0 +1,6 @@
+# Keep SQL migrations byte-stable across platforms.
+# `sqlx::migrate!` embeds the migration files at compile time and SQLx stores a
+# SHA-384 checksum of each applied migration in `_sqlx_migrations`. A CRLF
+# working copy changes those bytes, so an existing database fails to open with
+# "migration N was previously applied but has been modified".
+src-tauri/migrations/*.sql text eol=lf

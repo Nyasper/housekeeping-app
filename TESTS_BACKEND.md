@@ -12,7 +12,7 @@
 
 | Suite | Tests | Archivos | Runner |
 |-------|------:|---------:|--------|
-| Backend Rust | **33** | 13 módulos `#[cfg(test)]` | `cargo test` |
+| Backend Rust | **34** | | 13 módulos `#[cfg(test)]` | `cargo test` |
 
 - No hay tests de integración en `src-tauri/tests/`.
 - Los tests de dominio usan SQLite real en memoria y aplican las migraciones del proyecto.
@@ -40,7 +40,7 @@ cargo test modulo::test  # ejecutar un test o módulo puntual
 
 | Módulo | Archivo | Tests |
 |--------|---------|------:|
-| Base de datos | `src-tauri/src/db.rs` | 4 |
+| Base de datos | `src-tauri/src/db.rs` | 5 |
 | Errores | `src-tauri/src/error.rs` | 2 |
 | Estado de arranque | `src-tauri/src/state.rs` | 1 |
 | Ajustes | `src-tauri/src/settings.rs` | 5 |
@@ -53,18 +53,19 @@ cargo test modulo::test  # ejecutar un test o módulo puntual
 | Servicios de limpieza | `src-tauri/src/domain/cleaning/service.rs` | 2 |
 | Incidencias | `src-tauri/src/domain/incidents/service.rs` | 1 |
 | Reportes y exports | `src-tauri/src/domain/reports/queries.rs` | 3 |
-| **Total** | | **33** |
+| **Total** | | **34** |
 
 ---
 
 ## 2. Infraestructura
 
-### 2.1 `src-tauri/src/db.rs` — 4 tests
+### 2.1 `src-tauri/src/db.rs` — 5 tests
 
 | Test | Qué verifica |
 |------|--------------|
 | `connect_creates_parent_directories` | `connect` crea los directorios padre y el archivo de BD; las migraciones corren correctamente. |
 | `migrations_create_the_expected_schema` | Existen las 9 tablas esperadas (`staff`, `place`, `cleaning_service`, `service_staff`, `incident`, `absence`, `staff_place`, `staff_rest_day`, `settings`), 2 filas iniciales en `settings` y el trigger `trg_service_staff_keep_last`. |
+| `migrations_use_lf_line_endings` | Las migraciones embebidas no contienen CRLF: evita el error «migration N was previously applied but has been modified» por finales de línea. |
 | `valid_database_reopens_without_notice` | Abrir una BD válida dos veces no genera aviso de recuperación. |
 | `corrupt_database_is_quarantined_and_recreated` | Un archivo corrupto se pone en cuarentena (`.corrupt-*`), se recrea la BD, se emite un aviso mencionando "corrupt" y "Ajustes", y la tabla `settings` existe de nuevo. |
 
