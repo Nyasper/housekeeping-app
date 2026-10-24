@@ -41,6 +41,7 @@ bun install          # dependencias del frontend
 bun run tauri dev    # aplicación completa en modo desarrollo
 bun run build        # build del frontend
 bun run check        # svelte-check
+bun run seed         # datos de ejemplo de personal y lugares (idempotente)
 
 cd src-tauri
 cargo test
