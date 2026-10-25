@@ -562,14 +562,16 @@
 
   .incidents-grid {
     display: grid;
-    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+    gap: var(--space-3);
   }
 
   .incident-card {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
-    padding: var(--space-5);
+    gap: var(--space-3);
+    min-width: 0;
+    padding: var(--space-4);
   }
 
   .incident-card.status-open {
@@ -584,7 +586,7 @@
   }
 
   .title-row h2 {
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
   }
 
   .meta-line {
@@ -595,17 +597,18 @@
 
   .incident-description {
     color: var(--color-ink);
-    font-size: var(--text-base);
+    font-size: var(--text-sm);
     line-height: var(--leading-normal);
+    overflow-wrap: anywhere;
     white-space: pre-line;
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.65rem;
+    padding: 0.15rem 0.5rem;
     border-radius: var(--radius-pill);
-    font-size: var(--text-xs);
+    font-size: 0.7rem;
     font-weight: 650;
   }
 
@@ -662,8 +665,8 @@
 
   .incident-thumb {
     display: block;
-    max-width: 14rem;
-    max-height: 9rem;
+    max-width: 11rem;
+    max-height: 7.5rem;
     border-radius: var(--radius-sm);
     object-fit: cover;
   }
@@ -683,8 +686,8 @@
   }
 
   .button-sm {
-    min-height: 2.25rem;
-    padding: 0.45rem 0.85rem;
+    min-height: 2.1rem;
+    padding: 0.4rem 0.65rem;
     font-size: var(--text-xs);
   }
 

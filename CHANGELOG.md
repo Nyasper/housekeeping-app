@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Creating and editing staff, places, cleaning services, and incidents now happens in modals instead of inline panels that pushed content down the page.
+- Staff, places, services, incidents, and the daily board service list now render as compact responsive card grids with several columns, so more records fit on screen instead of one full-width column per row.
 - Service completion and the incident photo preview now use the shared modal.
 - The native webview right-click context menu is disabled across the app.
 - Removed the local-data notice from the sidebar footer.

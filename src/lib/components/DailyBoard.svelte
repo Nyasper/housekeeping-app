@@ -1099,6 +1099,10 @@
     font-size: var(--text-lg);
   }
 
+  .service-card .title-row h3 {
+    font-size: var(--text-base);
+  }
+
   .location-tag {
     color: var(--color-ink-muted);
     font-size: var(--text-xs);
@@ -1206,8 +1210,8 @@
   }
 
   .button-sm {
-    min-height: 2.25rem;
-    padding: 0.45rem 0.85rem;
+    min-height: 2.1rem;
+    padding: 0.4rem 0.65rem;
     font-size: var(--text-xs);
   }
 
@@ -1302,8 +1306,8 @@
   }
 
   .services-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
     gap: var(--space-3);
   }
 
@@ -1380,6 +1384,7 @@
   .service-notes {
     color: var(--color-ink-soft);
     font-size: var(--text-xs);
+    overflow-wrap: anywhere;
   }
 
   .service-actions {

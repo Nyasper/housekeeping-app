@@ -596,14 +596,16 @@
 
   .services-grid {
     display: grid;
-    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
+    gap: var(--space-3);
   }
 
   .service-card {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
-    padding: var(--space-5);
+    gap: var(--space-3);
+    min-width: 0;
+    padding: var(--space-4);
   }
 
   .service-card.has-anomaly {
@@ -618,21 +620,21 @@
   }
 
   .title-row h2 {
-    font-size: var(--text-lg);
+    font-size: var(--text-base);
   }
 
   .time-line {
     margin-top: var(--space-1);
     color: var(--color-ink-muted);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.65rem;
+    padding: 0.15rem 0.5rem;
     border-radius: var(--radius-pill);
-    font-size: var(--text-xs);
+    font-size: 0.7rem;
     font-weight: 650;
   }
 
@@ -675,12 +677,12 @@
   .staff-chip {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+    gap: var(--space-1);
+    padding: 0.2rem 0.55rem 0.2rem 0.25rem;
     border: 1px solid var(--color-line);
     border-radius: var(--radius-pill);
     background: var(--color-surface-raised);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     font-weight: 600;
   }
 
@@ -700,7 +702,8 @@
 
   .service-notes {
     color: var(--color-ink-soft);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
+    overflow-wrap: anywhere;
   }
 
   .card-actions {
@@ -709,6 +712,12 @@
     gap: var(--space-2);
     padding-top: var(--space-3);
     border-top: 1px solid var(--color-line);
+  }
+
+  .card-actions .button {
+    min-height: 2.1rem;
+    padding: 0.4rem 0.65rem;
+    font-size: var(--text-xs);
   }
 
   @media (max-width: 900px) {
