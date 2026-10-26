@@ -83,7 +83,11 @@
       </p>
     </div>
     <span class="selected-counter">
-      {selected.length} seleccionado{selected.length === 1 ? '' : 's'}
+      {#if loading && suggestions.length > 0}
+        <span role="status">Actualizando…</span>
+      {:else}
+        {selected.length} seleccionado{selected.length === 1 ? '' : 's'}
+      {/if}
     </span>
   </div>
 
@@ -142,7 +146,7 @@
     </div>
   {/if}
 
-  {#if loading}
+  {#if loading && suggestions.length === 0}
     <p class="status-note" role="status">Calculando sugerencias disponibles…</p>
   {:else if suggestions.length === 0}
     <p class="status-note">
@@ -150,7 +154,7 @@
       manualmente entre el personal activo debajo.
     </p>
   {:else}
-    <ul class="candidate-grid">
+    <ul class="candidate-grid" aria-busy={loading}>
       {#each suggestions as item, index (item.staff.id)}
         {@const checked = isSelected(item.staff.id)}
         {@const lead = isLead(item.staff.id)}

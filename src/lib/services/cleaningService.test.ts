@@ -20,6 +20,16 @@ afterEach(() => {
   setSystemTime();
 });
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('CleaningServiceManager.loadByDate', () => {
   test('defaults to today', async () => {
     setSystemTime(new Date(2026, 9, 21, 12));
@@ -232,6 +242,70 @@ describe('CleaningServiceManager.suggestStaff', () => {
     expect(result).toEqual([]);
     expect(manager.suggestions).toEqual([]);
     expect(manager.error).toBe('Falló.');
+    expect(manager.loadingSuggestions).toBe(false);
+  });
+
+  test('keeps only the suggestions from the latest request when responses arrive out of order', async () => {
+    const first = deferred<unknown>();
+    const second = deferred<unknown>();
+    const firstSuggestion = { staff: { id: 1 } as never, reasons: ['Primera'] };
+    const secondSuggestion = { staff: { id: 2 } as never, reasons: ['Segunda'] };
+    invokeMock.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const manager = new CleaningServiceManager();
+
+    const firstRequest = manager.suggestStaff(1, 'daily_cleaning', '2026-10-21');
+    const secondRequest = manager.suggestStaff(1, 'deep_cleaning', '2026-10-21');
+
+    first.resolve([firstSuggestion]);
+    await firstRequest;
+
+    expect(manager.suggestions).toEqual([]);
+    expect(manager.loadingSuggestions).toBe(true);
+
+    second.resolve([secondSuggestion]);
+    await secondRequest;
+
+    expect(manager.suggestions).toEqual([secondSuggestion]);
+    expect(manager.loadingSuggestions).toBe(false);
+  });
+
+  test('ignores errors from stale requests', async () => {
+    const first = deferred<unknown>();
+    const second = deferred<unknown>();
+    const secondSuggestion = { staff: { id: 2 } as never, reasons: ['Segunda'] };
+    invokeMock.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const manager = new CleaningServiceManager();
+
+    const firstRequest = manager.suggestStaff(1, 'daily_cleaning', '2026-10-21');
+    const secondRequest = manager.suggestStaff(1, 'deep_cleaning', '2026-10-21');
+
+    second.resolve([secondSuggestion]);
+    await secondRequest;
+    first.reject({ code: 'database', message: 'Falló la consulta vieja.' });
+    await firstRequest;
+
+    expect(manager.error).toBeNull();
+    expect(manager.suggestions).toEqual([secondSuggestion]);
+    expect(manager.loadingSuggestions).toBe(false);
+  });
+
+  test('resetSuggestions clears state and ignores pending responses', async () => {
+    const pending = deferred<unknown>();
+    const suggestion = { staff: { id: 2 } as never, reasons: ['Segunda'] };
+    invokeMock.mockReturnValueOnce(pending.promise);
+    const manager = new CleaningServiceManager();
+
+    const request = manager.suggestStaff(1, 'daily_cleaning', '2026-10-21');
+    manager.suggestions = [{ staff: { id: 1 } as never, reasons: ['Primera'] }];
+    manager.resetSuggestions();
+
+    expect(manager.suggestions).toEqual([]);
+    expect(manager.loadingSuggestions).toBe(false);
+
+    pending.resolve([suggestion]);
+    await request;
+
+    expect(manager.suggestions).toEqual([]);
     expect(manager.loadingSuggestions).toBe(false);
   });
 });

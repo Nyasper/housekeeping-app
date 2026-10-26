@@ -19,6 +19,7 @@ export class CleaningServiceManager {
   error = $state<string | null>(null);
   lastWarning = $state<string | null>(null);
   private requestToken = 0;
+  private suggestionRequestToken = 0;
 
   async loadByDate(date: string = todayIso()): Promise<void> {
     const token = ++this.requestToken;
@@ -134,6 +135,12 @@ export class CleaningServiceManager {
     }
   }
 
+  resetSuggestions(): void {
+    this.suggestionRequestToken += 1;
+    this.suggestions = [];
+    this.loadingSuggestions = false;
+  }
+
   async suggestStaff(
     placeId: number,
     serviceType: ServiceType,
@@ -142,7 +149,9 @@ export class CleaningServiceManager {
     endTime?: string | null,
     count = 10
   ): Promise<StaffSuggestion[]> {
+    const token = ++this.suggestionRequestToken;
     this.loadingSuggestions = true;
+    this.error = null;
     try {
       const list = await call<StaffSuggestion[]>('cleaning_suggest_staff', {
         placeId,
@@ -152,14 +161,20 @@ export class CleaningServiceManager {
         startTime: startTime || null,
         endTime: endTime || null
       });
-      this.suggestions = list;
+      if (token === this.suggestionRequestToken) {
+        this.suggestions = list;
+      }
       return list;
     } catch (cause) {
-      this.error = errorMessage(cause);
-      this.suggestions = [];
+      if (token === this.suggestionRequestToken) {
+        this.error = errorMessage(cause);
+        this.suggestions = [];
+      }
       return [];
     } finally {
-      this.loadingSuggestions = false;
+      if (token === this.suggestionRequestToken) {
+        this.loadingSuggestions = false;
+      }
     }
   }
 }

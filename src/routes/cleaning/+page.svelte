@@ -126,15 +126,17 @@
   function openCreateForm(): void {
     editingService = null;
     serviceFormDirty = false;
-    showForm = true;
     cleaningService.error = null;
+    cleaningService.resetSuggestions();
+    showForm = true;
   }
 
   function openEditForm(service: CleaningService): void {
     editingService = service;
     serviceFormDirty = false;
-    showForm = true;
     cleaningService.error = null;
+    cleaningService.resetSuggestions();
+    showForm = true;
   }
 
   function closeForm(): void {

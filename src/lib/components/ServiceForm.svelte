@@ -187,23 +187,53 @@
       : null
   );
 
-  function triggerSuggestions(): void {
-    if (placeId > 0 && date.trim()) {
-      onrequestsuggestions({
-        placeId,
-        serviceType,
-        date: date.trim(),
-        startTime: startTime.trim() || null,
-        endTime: endTime.trim() || null
-      });
-    }
-  }
+  // Single debounced trigger: attachments are reactive and would fire a second
+  // request for every field change, which caused the modal to flicker.
+  let firstSuggestionRun = true;
+  let lastSuggestionKey = '';
 
-  function handlePlaceChange(): void {
-    if (!initial && selectedPlace?.recommended_service_type) {
-      serviceType = selectedPlace.recommended_service_type;
+  $effect(() => {
+    const params = {
+      placeId,
+      serviceType,
+      date: date.trim(),
+      startTime: startTime.trim() || null,
+      endTime: endTime.trim() || null
+    };
+
+    if (placeId <= 0 || !params.date) {
+      return;
     }
-    triggerSuggestions();
+
+    const key = JSON.stringify(params);
+
+    if (firstSuggestionRun) {
+      firstSuggestionRun = false;
+      lastSuggestionKey = key;
+      untrack(() => onrequestsuggestions(params));
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      if (key === lastSuggestionKey) {
+        return;
+      }
+      lastSuggestionKey = key;
+      onrequestsuggestions(params);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  });
+
+  function handlePlaceChange(event: Event): void {
+    if (initial) {
+      return;
+    }
+    const nextPlaceId = Number((event.currentTarget as HTMLSelectElement).value);
+    const nextPlace = places.find((place) => place.id === nextPlaceId);
+    if (nextPlace?.recommended_service_type) {
+      serviceType = nextPlace.recommended_service_type;
+    }
   }
 
   async function handleSubmit(event: SubmitEvent): Promise<void> {
@@ -229,15 +259,7 @@
   }
 </script>
 
-<form
-  id={formId}
-  class="service-form"
-  {@attach () => {
-    triggerSuggestions();
-  }}
-  onsubmit={handleSubmit}
-  aria-busy={busy}
->
+<form id={formId} class="service-form" onsubmit={handleSubmit} aria-busy={busy}>
   <div class="grid-two">
     <FormField id="service-place" label="Lugar" required error={placeError}>
       <select
@@ -263,7 +285,6 @@
         id="service-type"
         class="input"
         bind:value={serviceType}
-        onchange={triggerSuggestions}
         disabled={busy}
       >
         {#each serviceTypeOptions as option (option.value)}
@@ -278,7 +299,6 @@
         class="input"
         type="date"
         bind:value={date}
-        onchange={triggerSuggestions}
         disabled={busy}
       />
     </FormField>
@@ -302,7 +322,6 @@
         class="input"
         type="time"
         bind:value={startTime}
-        onchange={triggerSuggestions}
         disabled={busy}
         aria-invalid={Boolean(timeError)}
       />
@@ -318,7 +337,6 @@
         class="input"
         type="time"
         bind:value={endTime}
-        onchange={triggerSuggestions}
         disabled={busy}
         aria-invalid={Boolean(timeError)}
       />

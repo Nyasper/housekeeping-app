@@ -12,7 +12,7 @@
 
 | Suite | Tests | Archivos | Runner |
 |-------|------:|---------:|--------|
-| Frontend TypeScript | **155** | 15 archivos `*.test.ts` | `bun test` |
+| Frontend TypeScript | **164** | 15 archivos `*.test.ts` | `bun test` |
 
 - No hay tests E2E, de navegador real, de componentes ni de clicks.
 - No se usa Playwright, jsdom ni ninguna librería de DOM.
@@ -50,14 +50,14 @@ bun test src/lib/utils/format.test.ts
 | Personal | `src/lib/services/staffService.test.ts` | 10 |
 | Personal | `src/lib/services/staffServiceCrud.test.ts` | 11 |
 | Lugares | `src/lib/services/placesService.test.ts` | 11 |
-| Limpieza | `src/lib/services/cleaningService.test.ts` | 13 |
+| Limpieza | `src/lib/services/cleaningService.test.ts` | 16 |
 | Incidencias | `src/lib/services/incidentsService.test.ts` | 9 |
 | Reportes | `src/lib/services/reportsService.test.ts` | 10 |
 | Ajustes | `src/lib/services/settingsService.test.ts` | 5 |
 | Tema | `src/lib/services/themeService.test.ts` | 9 |
 | Exportaciones | `src/lib/services/exportService.test.ts` | 12 |
 | Respaldos | `src/lib/services/backupService.test.ts` | 13 |
-| **Total** | | **161** |
+| **Total** | | **164** |
 
 ---
 
@@ -232,7 +232,7 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `returns the recommended task and defaults to today` | `recommendedTask` usa la fecha seleccionada o la actual. |
 | `stores errors and returns null when a mutation fails` | Error de mutación devuelve `null`, guarda el mensaje y apaga `saving`. |
 
-### 5.5 `src/lib/services/cleaningService.test.ts` — 13 tests
+### 5.5 `src/lib/services/cleaningService.test.ts` — 16 tests
 
 | Test | Qué verifica |
 |------|--------------|
@@ -247,6 +247,9 @@ Esto permite instanciar las clases reales de los servicios sin mockear toda la c
 | `maps empty times to null and uses the default count` | Sugerencias con horas vacías envían `null` y `count: 10`. |
 | `passes explicit times and count` | Sugerencias envían horas y cantidad explícitas. |
 | `clears suggestions and stores the error on failure` | Error de sugerencias limpia la lista, guarda el mensaje y apaga `loadingSuggestions`. |
+| `keeps only the suggestions from the latest request when responses arrive out of order` | Con respuestas fuera de orden, solo la última petición reemplaza las sugerencias y apaga `loadingSuggestions`. |
+| `ignores errors from stale requests` | Un error de una petición vieja no pisa el resultado exitoso de la última. |
+| `resetSuggestions clears state and ignores pending responses` | `resetSuggestions` limpia sugerencias y carga, e invalida respuestas pendientes. |
 
 ### 5.6 `src/lib/services/incidentsService.test.ts` — 9 tests
 

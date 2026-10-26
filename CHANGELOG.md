@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The cleaning service form no longer flickers while staff suggestions reload after changing the service type, place, date, or time; the current suggestion list stays visible during refreshes and stale responses are discarded.
 - List screens no longer show stale or empty data after creating the first record; late responses from previous requests are ignored.
 - Input text carets stay visible in both themes when hovering or focusing fields.
 - Places and cleaning screens now reload date-aware recommendations for the selected date instead of reusing the last daily-board date.

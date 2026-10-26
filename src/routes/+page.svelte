@@ -125,6 +125,7 @@
     incidentFormDirty = false;
     completingService = null;
     cleaningService.error = null;
+    cleaningService.resetSuggestions();
     showServiceForm = true;
   }
 
@@ -137,6 +138,7 @@
     incidentFormDirty = false;
     completingService = null;
     cleaningService.error = null;
+    cleaningService.resetSuggestions();
     showServiceForm = true;
   }
 
