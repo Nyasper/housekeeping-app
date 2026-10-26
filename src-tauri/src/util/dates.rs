@@ -12,7 +12,7 @@ pub fn parse_date(value: &str, field_label: &str) -> Result<NaiveDate, CommandEr
     NaiveDate::parse_from_str(value.trim(), "%Y-%m-%d").map_err(|_| {
         CommandError::new(
             "validation",
-            format!("La fecha de {field_label} no es válida (formato esperado: AAAA-MM-DD)."),
+            format!("La fecha {field_label} no es válida (formato esperado: AAAA-MM-DD)."),
         )
     })
 }
@@ -58,14 +58,12 @@ pub fn validate_date_range(
     end: &str,
     range_label: &str,
 ) -> Result<(NaiveDate, NaiveDate), CommandError> {
-    let start_date = parse_date(start, &format!("inicio de {range_label}"))?;
-    let end_date = parse_date(end, &format!("fin de {range_label}"))?;
+    let start_date = parse_date(start, &format!("de inicio {range_label}"))?;
+    let end_date = parse_date(end, &format!("de fin {range_label}"))?;
     if start_date > end_date {
         return Err(CommandError::new(
             "validation",
-            format!(
-                "La fecha de inicio de {range_label} no puede ser posterior a la fecha de fin."
-            ),
+            format!("La fecha de inicio {range_label} no puede ser posterior a la fecha de fin."),
         ));
     }
     Ok((start_date, end_date))
@@ -97,27 +95,30 @@ mod tests {
 
     #[test]
     fn parses_valid_dates_and_rejects_invalid_ones() {
-        let date = parse_date("2026-10-21", "prueba").expect("valid date");
+        let date = parse_date("2026-10-21", "de prueba").expect("valid date");
         assert_eq!(date.year(), 2026);
         assert_eq!(date.month(), 10);
         assert_eq!(date.day(), 21);
         // 2026-10-21 is a Wednesday -> 2
         assert_eq!(weekday_index(date), 2);
 
-        let err = parse_date("21/10/2026", "prueba").expect_err("invalid format");
+        let err = parse_date("21/10/2026", "de prueba").expect_err("invalid format");
         assert_eq!(err.code, "validation");
     }
 
     #[test]
     fn validates_date_ranges_and_overlaps() {
-        let (s1, e1) = validate_date_range("2026-01-10", "2026-01-15", "licencia").expect("range");
-        let (s2, e2) = validate_date_range("2026-01-15", "2026-01-20", "licencia").expect("range");
-        let (s3, e3) = validate_date_range("2026-01-16", "2026-01-20", "licencia").expect("range");
+        let (s1, e1) =
+            validate_date_range("2026-01-10", "2026-01-15", "de la licencia").expect("range");
+        let (s2, e2) =
+            validate_date_range("2026-01-15", "2026-01-20", "de la licencia").expect("range");
+        let (s3, e3) =
+            validate_date_range("2026-01-16", "2026-01-20", "de la licencia").expect("range");
 
         assert!(ranges_overlap(s1, e1, s2, e2));
         assert!(!ranges_overlap(s1, e1, s3, e3));
 
-        let err = validate_date_range("2026-01-20", "2026-01-10", "licencia")
+        let err = validate_date_range("2026-01-20", "2026-01-10", "de la licencia")
             .expect_err("inverted range");
         assert_eq!(err.code, "validation");
     }

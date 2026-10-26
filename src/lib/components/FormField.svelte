@@ -11,9 +11,30 @@
   }
 
   let { id, label, required = false, hint, error = null, children }: Props = $props();
+
+  let fieldElement = $state<HTMLDivElement | null>(null);
+
+  $effect(() => {
+    const control = fieldElement?.querySelector<HTMLElement>('input, select, textarea');
+    if (!control) {
+      return;
+    }
+
+    control.setAttribute('aria-required', required ? 'true' : 'false');
+
+    const describedBy = [hint ? `${id}-hint` : null, error ? `${id}-error` : null]
+      .filter((value): value is string => Boolean(value))
+      .join(' ');
+
+    if (describedBy) {
+      control.setAttribute('aria-describedby', describedBy);
+    } else {
+      control.removeAttribute('aria-describedby');
+    }
+  });
 </script>
 
-<div class="form-field">
+<div class="form-field" bind:this={fieldElement}>
   <label class="field-label" for={id}>
     {label}
     {#if required}

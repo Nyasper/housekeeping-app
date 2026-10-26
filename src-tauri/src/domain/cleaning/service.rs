@@ -514,6 +514,7 @@ pub async fn suggest_staff(
     count: Option<usize>,
     start_time: Option<&str>,
     end_time: Option<&str>,
+    exclude_service_id: Option<i64>,
 ) -> Result<Vec<StaffSuggestion>, CommandError> {
     let st_trimmed = service_type.trim();
     if !VALID_SERVICE_TYPES.contains(&st_trimmed) {
@@ -534,13 +535,15 @@ pub async fn suggest_staff(
 
     let all_staff = staff_service::list_staff(pool, data_dir).await?;
     let all_absences = staff_repo::list_absences(pool, None).await?;
-    let recent_counts = repo::get_recent_service_counts_map(pool, &window_start, &iso_date).await?;
+    let recent_counts =
+        repo::get_recent_service_counts_map(pool, &window_start, &iso_date, exclude_service_id)
+            .await?;
 
     let mut absence_map: HashMap<i64, Vec<(NaiveDate, NaiveDate)>> = HashMap::new();
     for abs in all_absences {
         if let (Ok(s), Ok(e)) = (
-            parse_date(&abs.start_date, "inicio ausencia"),
-            parse_date(&abs.end_date, "fin ausencia"),
+            parse_date(&abs.start_date, "de inicio de la ausencia"),
+            parse_date(&abs.end_date, "de fin de la ausencia"),
         ) {
             absence_map.entry(abs.staff_id).or_default().push((s, e));
         }
@@ -567,8 +570,13 @@ pub async fn suggest_staff(
             continue;
         }
 
-        let same_day =
-            repo::list_other_services_for_staff_on_date(pool, member.id, &iso_date, None).await?;
+        let same_day = repo::list_other_services_for_staff_on_date(
+            pool,
+            member.id,
+            &iso_date,
+            exclude_service_id,
+        )
+        .await?;
 
         let mut has_time_overlap = false;
         if let (Some(st), Some(et)) = (norm_start.as_deref(), norm_end.as_deref()) {
@@ -1008,6 +1016,97 @@ mod tests {
     }
 
     #[test]
+    fn suggestions_exclude_the_service_being_edited_from_overlap_checks() {
+        tauri::async_runtime::block_on(async {
+            let pool = test_pool().await;
+
+            let apt = places_service::create_place(
+                &pool,
+                PlaceInput {
+                    name: "Apto 503".to_string(),
+                    place_type: "apartment".to_string(),
+                    status: None,
+                    location: None,
+                    check_in_date: None,
+                    check_out_date: None,
+                    notes: None,
+                },
+            )
+            .await
+            .expect("apt");
+
+            let staff = staff_service::create_staff(
+                &pool,
+                None,
+                make_staff_input("Paula", "Sosa", "60000010", "maid"),
+            )
+            .await
+            .expect("staff");
+
+            let service = create_service(
+                &pool,
+                None,
+                CleaningServiceInput {
+                    place_id: apt.id,
+                    date: "2026-10-21".to_string(),
+                    start_time: Some("09:00".to_string()),
+                    end_time: Some("10:00".to_string()),
+                    service_type: "daily_cleaning".to_string(),
+                    status: "planned".to_string(),
+                    notes: None,
+                    staff: vec![ServiceStaffInput {
+                        staff_id: staff.id,
+                        is_lead: true,
+                    }],
+                },
+            )
+            .await
+            .expect("service");
+
+            // Without excluding the edited service, the assigned staff member
+            // overlaps with their own service and disappears from suggestions.
+            let without_exclusion = suggest_staff(
+                &pool,
+                None,
+                apt.id,
+                "daily_cleaning",
+                "2026-10-21",
+                Some(10),
+                Some("09:00"),
+                Some("10:00"),
+                None,
+            )
+            .await
+            .expect("suggestions without exclusion");
+            assert!(without_exclusion.is_empty());
+
+            let with_exclusion = suggest_staff(
+                &pool,
+                None,
+                apt.id,
+                "daily_cleaning",
+                "2026-10-21",
+                Some(10),
+                Some("09:00"),
+                Some("10:00"),
+                Some(service.id),
+            )
+            .await
+            .expect("suggestions with exclusion");
+            assert_eq!(with_exclusion.len(), 1);
+            assert_eq!(with_exclusion[0].staff.id, staff.id);
+            assert!(
+                with_exclusion[0]
+                    .reasons
+                    .iter()
+                    .any(|reason| reason.contains("Sin servicios recientes"))
+            );
+
+            pool.close().await;
+        });
+    }
+
+    #[test]
     fn assisted_staff_suggestions_respect_availability_and_ranking() {
         tauri::async_runtime::block_on(async {
             let pool = test_pool().await;
@@ -1085,6 +1184,7 @@ mod tests {
                 "daily_cleaning",
                 "2026-10-21",
                 Some(10),
+                None,
                 None,
                 None,
             )

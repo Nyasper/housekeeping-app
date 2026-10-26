@@ -148,7 +148,6 @@ fn build_workbook(dataset: &ExportDataset, path: &std::path::Path) -> Result<(),
         current_row += 1;
     } else {
         for (row_idx, row) in dataset.rows.iter().enumerate() {
-            worksheet.set_row_height(current_row, 20.0)?;
             let bg_color = if row_idx % 2 == 0 {
                 Color::RGB(0xFFFFFF)
             } else {

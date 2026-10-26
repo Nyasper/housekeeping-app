@@ -147,7 +147,8 @@ export class CleaningServiceManager {
     date: string,
     startTime?: string | null,
     endTime?: string | null,
-    count = 10
+    count = 10,
+    excludeServiceId: number | null = null
   ): Promise<StaffSuggestion[]> {
     const token = ++this.suggestionRequestToken;
     this.loadingSuggestions = true;
@@ -159,7 +160,8 @@ export class CleaningServiceManager {
         date,
         count,
         startTime: startTime || null,
-        endTime: endTime || null
+        endTime: endTime || null,
+        excludeServiceId
       });
       if (token === this.suggestionRequestToken) {
         this.suggestions = list;

@@ -132,8 +132,13 @@
     if (manifest) {
       syncFromService();
       loaded = true;
-      toastTone = 'success';
-      toastMessage = `Respaldo restaurado correctamente (${formatNumber(manifest.counts.staff)} funcionarios, ${formatNumber(manifest.counts.places)} lugares, ${formatNumber(manifest.counts.cleaning_services)} servicios, ${formatNumber(manifest.counts.incidents)} incidencias).`;
+      if (backupService.error) {
+        toastTone = 'warning';
+        toastMessage = backupService.error;
+      } else {
+        toastTone = 'success';
+        toastMessage = `Respaldo restaurado correctamente (${formatNumber(manifest.counts.staff)} funcionarios, ${formatNumber(manifest.counts.places)} lugares, ${formatNumber(manifest.counts.cleaning_services)} servicios, ${formatNumber(manifest.counts.incidents)} incidencias).`;
+      }
     } else if (backupService.error) {
       toastTone = 'error';
       toastMessage = backupService.error;
@@ -194,6 +199,7 @@
             bind:value={recentVacatedDays}
             oninput={clearSuccess}
             disabled={busy || !loaded}
+            aria-required="true"
             aria-invalid={submitted && recentInvalid}
             aria-describedby={`recent-vacated-hint${submitted && recentInvalid ? ' recent-vacated-error' : ''}`}
           />
@@ -222,6 +228,7 @@
             bind:value={upcomingOccupancyDays}
             oninput={clearSuccess}
             disabled={busy || !loaded}
+            aria-required="true"
             aria-invalid={submitted && upcomingInvalid}
             aria-describedby={`upcoming-occupancy-hint${submitted && upcomingInvalid ? ' upcoming-occupancy-error' : ''}`}
           />

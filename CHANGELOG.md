@@ -20,30 +20,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Service completion and the incident photo preview now use the shared modal.
 - The native webview right-click context menu is disabled across the app.
 - Removed the local-data notice from the sidebar footer.
+- Creating or editing a staff member now saves weekly rest days and main apartments in the same operation as the staff record, so a failure cannot leave a partially saved employee.
+- Backup manifests now declare schema version 2 to match the current migrations.
+- The "Ayuda" link, required-field indicators, modal descriptions, report filters, and form hints/errors are now exposed correctly to assistive technology.
+- Light and dark theme text, badges, and destructive action buttons now meet WCAG AA contrast requirements.
 
 ### Fixed
 
 - The cleaning service form no longer flickers while staff suggestions reload after changing the service type, place, date, or time; the current suggestion list stays visible during refreshes and stale responses are discarded.
+- Editing a cleaning service now keeps its assigned staff visible and excludes the service itself from overlap and workload calculations.
 - List screens no longer show stale or empty data after creating the first record; late responses from previous requests are ignored.
+- Report screens now discard stale responses, clear previous data when filters are incomplete, and show an explicit empty state instead of stale tables.
+- Completing a service now shows validation and backend errors inside the completion modal, including invalid start/end times.
 - Input text carets stay visible in both themes when hovering or focusing fields.
 - Places and cleaning screens now reload date-aware recommendations for the selected date instead of reusing the last daily-board date.
+- Board and service date pickers now restore the previous date when cleared instead of leaving an empty control with stale data.
 - Cleaning service forms now show inactive assigned staff so they can be removed or reassigned.
 - Cancelled services can now be reopened from the edit form with explicit confirmation.
 - Staff assignment warnings now only appear for overlapping services or when times are missing, instead of for every same-day assignment.
 - Completed services can no longer be cancelled; they can only be reopened to a planned or in-progress state with explicit confirmation.
 - CSV exports now use semicolon separators and comma decimals so they open correctly in Excel with Spanish regional settings.
 - Editing a staff member no longer drops main-place associations to deactivated apartments; they are restored when the apartment is reactivated.
-- Daily-sheet exports no longer count cancelled services in the service, completed, or minutes totals.
+- Deleting an absence now requires explicit confirmation.
+- Starting a service no longer discards a valid planned end time.
+- Daily-sheet reports and exports now exclude cancelled services completely, matching the business rule.
+- XLSX exports let rows grow to fit wrapped notes and incident summaries instead of clipping them at a fixed height.
 - The board and places list now show the actual cancellation date from a dedicated `place.cancelled_at` timestamp, and cancellation/resolution timestamps are converted from UTC to local time.
 - Editing a service can no longer move it to a deactivated place; historical services on deactivated places remain editable.
 - Changing staff on a completed service now requires explicit confirmation, matching the completed-service edit rule.
 - PDF exports now cap oversized table rows so long notes cannot overflow into the page footer.
 - Cleaning status updates can now explicitly clear start/end times by passing `null`.
-- Restore now keeps a successful restore reported as successful while warning if cached data could not be reloaded.
+- Restore now keeps a successful restore reported as successful while warning if cached data could not be reloaded, and the warning is no longer hidden by the success toast.
 - Invalid ISO dates such as `2026-02-30` are no longer rolled over into the next month.
+- Date and time validation messages now use correct Spanish grammar.
 - Duration formatting no longer renders `60 min` for values close to one hour.
 - Time formatting and duration calculations now reject out-of-range hours and minutes.
 - `shiftIsoDate` keeps invalid input unchanged instead of silently jumping to today.
+- National IDs are normalized before uniqueness checks, so formatting differences such as dots or hyphens no longer create duplicate staff records.
+- Place-name uniqueness now compares Unicode case-insensitively and ignores repeated whitespace.
+
+### Security
+
+- Photo paths are now restricted to the application `photos` directory, preventing a manipulated database or backup from deleting arbitrary files.
+- CSV exports neutralize cells that could be interpreted as spreadsheet formulas by Excel.
 
 ## [0.1.0] - 2026-10-22
 

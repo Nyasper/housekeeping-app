@@ -97,6 +97,15 @@
     }, 150);
   }
 
+  function handleDateInput(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    if (!input.value.trim()) {
+      input.value = selectedDate;
+      return;
+    }
+    ondatechange(input.value);
+  }
+
   // Active (non-cancelled) services for the selected date
   const activeDayServices = $derived(
     services.filter((service) => service.status !== 'cancelled')
@@ -322,7 +331,7 @@
         class="input date-picker"
         type="date"
         value={selectedDate}
-        onchange={(e) => ondatechange((e.currentTarget as HTMLInputElement).value)}
+        onchange={handleDateInput}
       />
     </div>
     <button
@@ -535,6 +544,7 @@
             <button
               type="button"
               class={`filter-pill ${statusFilter === 'all' ? 'is-active' : ''}`}
+              aria-pressed={statusFilter === 'all'}
               onclick={() => (statusFilter = 'all')}
             >
               Todos ({services.length})
@@ -542,6 +552,7 @@
             <button
               type="button"
               class={`filter-pill ${statusFilter === 'in_progress' ? 'is-active' : ''}`}
+              aria-pressed={statusFilter === 'in_progress'}
               onclick={() => (statusFilter = 'in_progress')}
             >
               En progreso ({inProgressCount})
@@ -549,6 +560,7 @@
             <button
               type="button"
               class={`filter-pill ${statusFilter === 'planned' ? 'is-active' : ''}`}
+              aria-pressed={statusFilter === 'planned'}
               onclick={() => (statusFilter = 'planned')}
             >
               Planificados ({plannedCount})
@@ -556,6 +568,7 @@
             <button
               type="button"
               class={`filter-pill ${statusFilter === 'completed' ? 'is-active' : ''}`}
+              aria-pressed={statusFilter === 'completed'}
               onclick={() => (statusFilter = 'completed')}
             >
               Completados ({completedCount})
@@ -629,8 +642,10 @@
                         {#if duration !== null}
                           · <strong>{formatDurationMinutes(duration)}</strong>
                         {/if}
-                      {:else if service.start_time}
+                      {:else if service.status === 'in_progress' && service.start_time}
                         Iniciado a las {formatTime(service.start_time)} · En progreso
+                      {:else if service.start_time}
+                        Inicio registrado: {formatTime(service.start_time)}
                       {:else}
                         Horario aún sin registrar
                       {/if}

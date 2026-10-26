@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{Executor, Sqlite, SqlitePool};
 
 use super::model::{IncidentListFilters, IncidentRow};
 use crate::error::CommandError;
@@ -73,13 +73,16 @@ pub async fn get_incident_row(
     Ok(row)
 }
 
-pub async fn insert_incident(
-    pool: &SqlitePool,
+pub async fn insert_incident<'e, E>(
+    executor: E,
     service_id: i64,
     incident_type: &str,
     description: &str,
     date: &str,
-) -> Result<i64, CommandError> {
+) -> Result<i64, CommandError>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     let result = sqlx::query(
         "INSERT INTO incident (service_id, type, description, status, date)
          VALUES (?1, ?2, ?3, 'open', ?4)",
@@ -88,21 +91,24 @@ pub async fn insert_incident(
     .bind(incident_type)
     .bind(description)
     .bind(date)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(result.last_insert_rowid())
 }
 
-pub async fn update_incident_photo_path(
-    pool: &SqlitePool,
+pub async fn update_incident_photo_path<'e, E>(
+    executor: E,
     id: i64,
     photo_path: Option<&str>,
-) -> Result<(), CommandError> {
+) -> Result<(), CommandError>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     sqlx::query("UPDATE incident SET photo_path = ?1 WHERE id = ?2")
         .bind(photo_path)
         .bind(id)
-        .execute(pool)
+        .execute(executor)
         .await?;
     Ok(())
 }

@@ -53,19 +53,11 @@ export class StaffService {
     this.saving = true;
     this.error = null;
     try {
-      const created = await call<Staff>('staff_create', { input });
-      if (restDays.length > 0) {
-        await call<number[]>('staff_rest_days_set', {
-          staffId: created.id,
-          weekdays: restDays
-        });
-      }
-      if (mainPlaceIds.length > 0) {
-        await call<Staff>('staff_places_set', {
-          staffId: created.id,
-          placeIds: mainPlaceIds
-        });
-      }
+      const created = await call<Staff>('staff_create', {
+        input,
+        restDays,
+        mainPlaceIds
+      });
       await this.load();
       return this.items.find((item) => item.id === created.id) ?? created;
     } catch (cause) {
@@ -85,14 +77,11 @@ export class StaffService {
     this.saving = true;
     this.error = null;
     try {
-      await call<Staff>('staff_update', { id, input });
-      await call<number[]>('staff_rest_days_set', {
-        staffId: id,
-        weekdays: restDays
-      });
-      const updated = await call<Staff>('staff_places_set', {
-        staffId: id,
-        placeIds: mainPlaceIds
+      const updated = await call<Staff>('staff_update', {
+        id,
+        input,
+        restDays,
+        mainPlaceIds
       });
       await this.load();
       return this.items.find((item) => item.id === id) ?? updated;

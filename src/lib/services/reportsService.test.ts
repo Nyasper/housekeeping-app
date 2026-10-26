@@ -6,6 +6,7 @@ import {
   makeServicesByStaffRow
 } from '#lib/testing/factories.js';
 import { invokeMock } from '#lib/testing/tauriMocks.js';
+import type { DailySheetRow } from '#lib/api/types.js';
 
 mock.module('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
 
@@ -15,6 +16,16 @@ beforeEach(() => {
   invokeMock.mockReset();
   invokeMock.mockResolvedValue(undefined);
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
 
 describe('ReportsService derived totals', () => {
   test('sums services and working hours', () => {
@@ -149,6 +160,40 @@ describe('ReportsService loaders', () => {
     await service.loadDailySheet('2026-10-21');
 
     expect(service.error).toBe('Falló el reporte.');
+    expect(service.loading).toBe(false);
+  });
+
+  test('discards stale responses when the same report is reloaded', async () => {
+    const stale = deferred<unknown>();
+    const fresh = deferred<unknown>();
+    const staleRows: DailySheetRow[] = [{ service_id: 1, place_name: 'Viejo' } as DailySheetRow];
+    const freshRows: DailySheetRow[] = [{ service_id: 2, place_name: 'Nuevo' } as DailySheetRow];
+    invokeMock.mockReturnValueOnce(stale.promise).mockReturnValueOnce(fresh.promise);
+    const service = new ReportsService();
+
+    const firstLoad = service.loadDailySheet('2026-10-21');
+    const secondLoad = service.loadDailySheet('2026-10-22');
+
+    fresh.resolve(freshRows);
+    await secondLoad;
+    stale.resolve(staleRows);
+    await firstLoad;
+
+    expect(service.dailySheet).toEqual(freshRows);
+    expect(service.loading).toBe(false);
+  });
+
+  test('clearing a report invalidates in-flight responses', async () => {
+    const pending = deferred<unknown>();
+    invokeMock.mockReturnValueOnce(pending.promise);
+    const service = new ReportsService();
+
+    const load = service.loadDailySheet('2026-10-21');
+    service.clearDailySheet();
+    pending.resolve([{ service_id: 1, place_name: 'Viejo' } as DailySheetRow]);
+    await load;
+
+    expect(service.dailySheet).toEqual([]);
     expect(service.loading).toBe(false);
   });
 });

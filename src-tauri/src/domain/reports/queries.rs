@@ -50,10 +50,21 @@ pub enum ExportCell {
     Float2(f64),
 }
 
+fn neutralize_csv_formula(value: &str) -> String {
+    if matches!(
+        value.chars().next(),
+        Some('=' | '+' | '-' | '@' | '\t' | '\r')
+    ) {
+        format!("'{value}")
+    } else {
+        value.to_string()
+    }
+}
+
 impl ExportCell {
     pub fn to_csv_string(&self) -> String {
         match self {
-            Self::Text(value) => value.clone(),
+            Self::Text(value) => neutralize_csv_formula(value),
             Self::Int(value) => value.to_string(),
             // Excel with Spanish regional settings expects a comma decimal separator.
             Self::Float1(value) => format!("{value:.1}").replace('.', ","),
@@ -260,7 +271,7 @@ pub async fn services_by_staff(
     pool: &SqlitePool,
     range: &DateRange,
 ) -> Result<Vec<ServicesByStaffRow>, CommandError> {
-    let (start_date, end_date) = validate_date_range(&range.from, &range.to, "reporte")?;
+    let (start_date, end_date) = validate_date_range(&range.from, &range.to, "del reporte")?;
     let from_iso = start_date.format("%Y-%m-%d").to_string();
     let to_iso = end_date.format("%Y-%m-%d").to_string();
 
@@ -352,7 +363,7 @@ pub async fn average_times(
     pool: &SqlitePool,
     range: &DateRange,
 ) -> Result<Vec<AverageTimesRow>, CommandError> {
-    let (start_date, end_date) = validate_date_range(&range.from, &range.to, "reporte")?;
+    let (start_date, end_date) = validate_date_range(&range.from, &range.to, "del reporte")?;
     let from_iso = start_date.format("%Y-%m-%d").to_string();
     let to_iso = end_date.format("%Y-%m-%d").to_string();
 
@@ -435,8 +446,8 @@ pub async fn absences_by_month(
     let mut map: HashMap<(i64, String), AbsencesByMonthRow> = HashMap::new();
 
     for row in rows {
-        let start = parse_date(&row.start_date, "inicio de ausencia")?;
-        let end = parse_date(&row.end_date, "fin de ausencia")?;
+        let start = parse_date(&row.start_date, "de inicio de la ausencia")?;
+        let end = parse_date(&row.end_date, "de fin de la ausencia")?;
         let effective_start = start.max(month_start);
         let effective_end = end.min(month_end);
         let days = (effective_end - effective_start).num_days() + 1;
@@ -469,7 +480,7 @@ pub async fn daily_sheet(
     pool: &SqlitePool,
     date: &str,
 ) -> Result<Vec<DailySheetRow>, CommandError> {
-    let parsed_date = parse_date(date, "planilla diaria")?;
+    let parsed_date = parse_date(date, "de la planilla diaria")?;
     let date_iso = parsed_date.format("%Y-%m-%d").to_string();
 
     let services = sqlx::query_as::<_, DailyServiceDbRow>(
@@ -486,6 +497,7 @@ pub async fn daily_sheet(
          FROM cleaning_service cs
          INNER JOIN place p ON p.id = cs.place_id
          WHERE cs.date = ?1
+           AND cs.status != 'cancelled'
          ORDER BY
             CASE WHEN cs.status = 'cancelled' THEN 1 ELSE 0 END ASC,
             COALESCE(cs.start_time, '99:99') ASC,
@@ -506,6 +518,7 @@ pub async fn daily_sheet(
          INNER JOIN cleaning_service cs ON cs.id = ss.service_id
          INNER JOIN staff s ON s.id = ss.staff_id
          WHERE cs.date = ?1
+           AND cs.status != 'cancelled'
          ORDER BY ss.service_id ASC, ss.is_lead DESC, s.last_name COLLATE NOCASE ASC, s.first_name COLLATE NOCASE ASC, s.id ASC",
     )
     .bind(&date_iso)
@@ -534,6 +547,7 @@ pub async fn daily_sheet(
          FROM incident i
          INNER JOIN cleaning_service cs ON cs.id = i.service_id
          WHERE cs.date = ?1
+           AND cs.status != 'cancelled'
          ORDER BY
             CASE WHEN i.status = 'open' THEN 0 ELSE 1 END ASC,
             i.id ASC",
@@ -1120,10 +1134,22 @@ mod tests {
             ExportCell::Text("Limpieza".to_string()).to_csv_string(),
             "Limpieza"
         );
+        assert_eq!(
+            ExportCell::Text("=SUM(A1:A2)".to_string()).to_csv_string(),
+            "'=SUM(A1:A2)"
+        );
+        assert_eq!(
+            ExportCell::Text("- peligro".to_string()).to_csv_string(),
+            "'- peligro"
+        );
+        assert_eq!(
+            ExportCell::Text("@usuario".to_string()).to_csv_string(),
+            "'@usuario"
+        );
     }
 
     #[test]
-    fn daily_sheet_totals_exclude_cancelled_services() {
+    fn daily_sheet_excludes_cancelled_services() {
         tauri::async_runtime::block_on(async {
             let pool = test_pool().await;
 
@@ -1203,7 +1229,7 @@ mod tests {
             .await
             .expect("daily sheet dataset");
 
-            assert_eq!(dataset.rows.len(), 2);
+            assert_eq!(dataset.rows.len(), 1);
             assert!(matches!(
                 &dataset.totals_row[1],
                 ExportCell::Text(value) if value.as_str() == "1 activo(s)"

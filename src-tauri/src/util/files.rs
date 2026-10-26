@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::CommandError;
@@ -44,7 +44,10 @@ pub fn store_entity_photo(
     let file_name = format!("photo-{nanos}.{extension}");
     let target_path = target_dir.join(&file_name);
 
-    std::fs::copy(source_path, &target_path)?;
+    if let Err(error) = std::fs::copy(source_path, &target_path) {
+        let _ = std::fs::remove_file(&target_path);
+        return Err(error.into());
+    }
 
     if let Some(previous) = previous_relative_path {
         remove_relative_photo(data_dir, previous);
@@ -53,14 +56,41 @@ pub fn store_entity_photo(
     Ok(format!("{relative_dir}/{file_name}"))
 }
 
+/// Resolves a stored relative path only when it points to an existing file
+/// inside `data_dir/photos`. Rejects absolute paths, drive prefixes and parent
+/// traversal so a manipulated database cannot reference or delete arbitrary
+/// files on the machine.
+fn resolve_contained_photo_path(data_dir: &Path, relative_path: &str) -> Option<PathBuf> {
+    let trimmed = relative_path.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let relative = Path::new(trimmed);
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return None;
+    }
+
+    let full_path = data_dir.join(relative);
+    let photos_root = data_dir.join("photos");
+    let canonical_root = photos_root.canonicalize().ok()?;
+    let canonical_target = full_path.canonicalize().ok()?;
+    if canonical_target.starts_with(&canonical_root) {
+        Some(full_path)
+    } else {
+        None
+    }
+}
+
 /// Removes a stored photo file if it exists inside `data_dir/photos`.
 pub fn remove_relative_photo(data_dir: &Path, relative_path: &str) {
-    let trimmed = relative_path.trim().trim_start_matches(['/', '\\']);
-    if trimmed.is_empty() || trimmed.contains("..") {
-        return;
-    }
-    let full_path = data_dir.join(trimmed);
-    if full_path.is_file() {
+    if let Some(full_path) = resolve_contained_photo_path(data_dir, relative_path)
+        && full_path.is_file()
+    {
         let _ = std::fs::remove_file(full_path);
     }
 }
@@ -69,16 +99,8 @@ pub fn remove_relative_photo(data_dir: &Path, relative_path: &str) {
 /// string suitable for the frontend (`convertFileSrc`).
 pub fn resolve_photo_url(data_dir: Option<&Path>, relative_path: Option<&str>) -> Option<String> {
     let base = data_dir?;
-    let rel = relative_path?.trim().trim_start_matches(['/', '\\']);
-    if rel.is_empty() || rel.contains("..") {
-        return None;
-    }
-    let full_path: PathBuf = base.join(rel);
-    if full_path.exists() {
-        Some(full_path.to_string_lossy().into_owned())
-    } else {
-        None
-    }
+    let rel = relative_path?;
+    resolve_contained_photo_path(base, rel).map(|path| path.to_string_lossy().into_owned())
 }
 
 #[cfg(test)]
@@ -115,5 +137,29 @@ mod tests {
 
         let err = store_entity_photo(dir.path(), "staff", 1, &src, None).expect_err("bad ext");
         assert_eq!(err.code, "validation");
+    }
+
+    #[test]
+    fn only_resolves_and_removes_files_inside_the_photos_directory() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let data_dir = dir.path().join("appdata");
+        std::fs::create_dir_all(data_dir.join("photos")).expect("photos");
+
+        let database = data_dir.join("housekeeping.db");
+        std::fs::write(&database, b"database").expect("database");
+        let outside = dir.path().join("outside.txt");
+        std::fs::write(&outside, b"outside").expect("outside");
+
+        remove_relative_photo(&data_dir, "housekeeping.db");
+        assert!(database.exists());
+        assert!(resolve_photo_url(Some(&data_dir), Some("housekeeping.db")).is_none());
+
+        let absolute = outside.to_string_lossy();
+        remove_relative_photo(&data_dir, &absolute);
+        assert!(outside.exists());
+        assert!(resolve_photo_url(Some(&data_dir), Some(&absolute)).is_none());
+
+        remove_relative_photo(&data_dir, "../outside.txt");
+        assert!(outside.exists());
     }
 }

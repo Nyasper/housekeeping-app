@@ -33,8 +33,8 @@ pub fn compute_recommended_task(
         };
     }
 
-    let check_in = check_in_date.and_then(|d| parse_date(d, "ingreso").ok());
-    let check_out = check_out_date.and_then(|d| parse_date(d, "egreso").ok());
+    let check_in = check_in_date.and_then(|d| parse_date(d, "de ingreso").ok());
+    let check_out = check_out_date.and_then(|d| parse_date(d, "de egreso").ok());
 
     let is_occupied = match (check_in, check_out) {
         (Some(ci), Some(co)) => ci <= reference_date && reference_date <= co,
@@ -80,8 +80,8 @@ pub fn is_within_season(
         return true;
     };
     let (Ok(start), Ok(end)) = (
-        parse_date(start_raw, "inicio de temporada"),
-        parse_date(end_raw, "fin de temporada"),
+        parse_date(start_raw, "de inicio de la temporada"),
+        parse_date(end_raw, "de fin de la temporada"),
     ) else {
         return true;
     };

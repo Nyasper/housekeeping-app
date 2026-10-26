@@ -116,6 +116,15 @@
     await refreshDateData(dateService.selectedDate);
   }
 
+  function handleDateInput(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    if (!input.value.trim()) {
+      input.value = dateService.selectedDate;
+      return;
+    }
+    void handleDateChange(input.value);
+  }
+
   function openCreateService(preset?: { placeId: number; serviceType: ServiceType }): void {
     editingService = null;
     serviceFormDirty = false;
@@ -174,13 +183,16 @@
     date: string;
     startTime: string | null;
     endTime: string | null;
+    excludeServiceId: number | null;
   }): void {
     void cleaningService.suggestStaff(
       params.placeId,
       params.serviceType,
       params.date,
       params.startTime,
-      params.endTime
+      params.endTime,
+      10,
+      params.excludeServiceId
     );
   }
 
@@ -229,7 +241,8 @@
 
   async function handleStartService(service: CleaningService): Promise<void> {
     const start = service.start_time ?? nowTimeIso();
-    const updated = await cleaningService.setStatus(service, 'in_progress', start, null);
+    const endTime = service.end_time && service.end_time <= start ? null : undefined;
+    const updated = await cleaningService.setStatus(service, 'in_progress', start, endTime);
     if (updated) {
       toastTone = 'success';
       toastMessage = `Servicio en ${service.place_name} iniciado (${start}).`;
@@ -242,6 +255,7 @@
   function openCompletePrompt(service: CleaningService): void {
     showServiceForm = false;
     showIncidentForm = false;
+    cleaningService.error = null;
     completingService = service;
     completeDirty = false;
     completeStartTime = service.start_time ?? '09:00';
@@ -453,6 +467,7 @@
       formId="board-complete-service-form"
       initialStartTime={completeStartTime}
       initialEndTime={completeEndTime}
+      error={cleaningService.error}
       bind:dirty={completeDirty}
       onsubmit={submitCompletePrompt}
     />

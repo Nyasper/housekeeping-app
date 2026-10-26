@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use sqlx::SqlitePool;
+use sqlx::{Executor, Sqlite, SqliteConnection, SqlitePool};
 
 use super::model::{Absence, PlaceSummary, StaffRow};
 
@@ -53,8 +53,8 @@ pub async fn find_by_national_id(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn insert_staff(
-    pool: &SqlitePool,
+pub async fn insert_staff<'e, E>(
+    executor: E,
     first_name: &str,
     last_name: &str,
     birth_date: Option<&str>,
@@ -67,7 +67,10 @@ pub async fn insert_staff(
     season_start_date: Option<&str>,
     season_end_date: Option<&str>,
     notes: Option<&str>,
-) -> Result<i64, sqlx::Error> {
+) -> Result<i64, sqlx::Error>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     let result = sqlx::query(
         "INSERT INTO staff (
             first_name,
@@ -96,15 +99,15 @@ pub async fn insert_staff(
     .bind(season_start_date)
     .bind(season_end_date)
     .bind(notes)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(result.last_insert_rowid())
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn update_staff(
-    pool: &SqlitePool,
+pub async fn update_staff<'e, E>(
+    executor: E,
     id: i64,
     first_name: &str,
     last_name: &str,
@@ -118,7 +121,10 @@ pub async fn update_staff(
     season_start_date: Option<&str>,
     season_end_date: Option<&str>,
     notes: Option<&str>,
-) -> Result<u64, sqlx::Error> {
+) -> Result<u64, sqlx::Error>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     let result = sqlx::query(
         "UPDATE staff SET
             first_name = ?1,
@@ -149,21 +155,24 @@ pub async fn update_staff(
     .bind(season_end_date)
     .bind(notes)
     .bind(id)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(result.rows_affected())
 }
 
-pub async fn update_photo_path(
-    pool: &SqlitePool,
+pub async fn update_photo_path<'e, E>(
+    executor: E,
     id: i64,
     photo_path: Option<&str>,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), sqlx::Error>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     sqlx::query("UPDATE staff SET photo_path = ?1, updated_at = datetime('now') WHERE id = ?2")
         .bind(photo_path)
         .bind(id)
-        .execute(pool)
+        .execute(executor)
         .await?;
     Ok(())
 }
@@ -239,21 +248,30 @@ pub async fn replace_rest_days(
     staff_id: i64,
     weekdays: &[i64],
 ) -> Result<(), sqlx::Error> {
-    let mut tx = pool.begin().await?;
+    let mut transaction = pool.begin().await?;
+    replace_rest_days_in_tx(&mut transaction, staff_id, weekdays).await?;
+    transaction.commit().await
+}
+
+pub async fn replace_rest_days_in_tx(
+    connection: &mut SqliteConnection,
+    staff_id: i64,
+    weekdays: &[i64],
+) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM staff_rest_day WHERE staff_id = ?1")
         .bind(staff_id)
-        .execute(&mut *tx)
+        .execute(&mut *connection)
         .await?;
 
     for weekday in weekdays {
         sqlx::query("INSERT INTO staff_rest_day (staff_id, weekday) VALUES (?1, ?2)")
             .bind(staff_id)
             .bind(*weekday)
-            .execute(&mut *tx)
+            .execute(&mut *connection)
             .await?;
     }
 
-    tx.commit().await
+    Ok(())
 }
 
 pub async fn get_main_places_for_staff(
@@ -346,10 +364,13 @@ pub async fn count_valid_active_apartments(
 /// Returns the staff's main-place associations whose place is currently
 /// deactivated. These are kept dormant so reactivating the place restores the
 /// assignment instead of silently losing it when the staff form is saved.
-pub async fn list_inactive_staff_place_ids(
-    pool: &SqlitePool,
+pub async fn list_inactive_staff_place_ids<'e, E>(
+    executor: E,
     staff_id: i64,
-) -> Result<Vec<i64>, sqlx::Error> {
+) -> Result<Vec<i64>, sqlx::Error>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     sqlx::query_scalar(
         "SELECT sp.place_id
          FROM staff_place sp
@@ -360,7 +381,7 @@ pub async fn list_inactive_staff_place_ids(
          ORDER BY sp.place_id ASC",
     )
     .bind(staff_id)
-    .fetch_all(pool)
+    .fetch_all(executor)
     .await
 }
 
@@ -369,21 +390,30 @@ pub async fn replace_staff_places(
     staff_id: i64,
     place_ids: &[i64],
 ) -> Result<(), sqlx::Error> {
-    let mut tx = pool.begin().await?;
+    let mut transaction = pool.begin().await?;
+    replace_staff_places_in_tx(&mut transaction, staff_id, place_ids).await?;
+    transaction.commit().await
+}
+
+pub async fn replace_staff_places_in_tx(
+    connection: &mut SqliteConnection,
+    staff_id: i64,
+    place_ids: &[i64],
+) -> Result<(), sqlx::Error> {
     sqlx::query("DELETE FROM staff_place WHERE staff_id = ?1")
         .bind(staff_id)
-        .execute(&mut *tx)
+        .execute(&mut *connection)
         .await?;
 
     for place_id in place_ids {
         sqlx::query("INSERT INTO staff_place (staff_id, place_id) VALUES (?1, ?2)")
             .bind(staff_id)
             .bind(*place_id)
-            .execute(&mut *tx)
+            .execute(&mut *connection)
             .await?;
     }
 
-    tx.commit().await
+    Ok(())
 }
 
 pub async fn list_absences(

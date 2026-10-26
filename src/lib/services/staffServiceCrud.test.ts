@@ -33,7 +33,9 @@ describe('StaffService.create', () => {
 
     expect(result).toEqual(created);
     expect(invokeMock).toHaveBeenNthCalledWith(1, 'staff_create', {
-      input: expect.objectContaining({ national_id: '12345678' })
+      input: expect.objectContaining({ national_id: '12345678' }),
+      restDays: [],
+      mainPlaceIds: []
     });
     expect(invokeMock).not.toHaveBeenCalledWith('staff_rest_days_set', expect.anything());
     expect(invokeMock).not.toHaveBeenCalledWith('staff_places_set', expect.anything());
@@ -45,22 +47,19 @@ describe('StaffService.create', () => {
     const created = makeStaff({ id: 7 });
     const updated = makeStaff({ id: 7, rest_days: [0, 6] });
     invokeMock.mockResolvedValueOnce(created);
-    invokeMock.mockResolvedValueOnce([0, 6]);
-    invokeMock.mockResolvedValueOnce(updated);
     mockLoad([updated]);
     const service = new StaffService();
 
     const result = await service.create(makeStaffInput(), [0, 6], [1]);
 
     expect(result).toEqual(updated);
-    expect(invokeMock).toHaveBeenNthCalledWith(2, 'staff_rest_days_set', {
-      staffId: 7,
-      weekdays: [0, 6]
+    expect(invokeMock).toHaveBeenNthCalledWith(1, 'staff_create', {
+      input: expect.objectContaining({ national_id: '12345678' }),
+      restDays: [0, 6],
+      mainPlaceIds: [1]
     });
-    expect(invokeMock).toHaveBeenNthCalledWith(3, 'staff_places_set', {
-      staffId: 7,
-      placeIds: [1]
-    });
+    expect(invokeMock).not.toHaveBeenCalledWith('staff_rest_days_set', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('staff_places_set', expect.anything());
   });
 
   test('returns null and stores the error when creation fails', async () => {
@@ -79,8 +78,6 @@ describe('StaffService.update', () => {
   test('updates staff and replaces rest days and places', async () => {
     const updated = makeStaff({ first_name: 'Carla' });
     invokeMock.mockResolvedValueOnce(updated);
-    invokeMock.mockResolvedValueOnce([2]);
-    invokeMock.mockResolvedValueOnce(updated);
     mockLoad([updated]);
     const service = new StaffService();
 
@@ -89,16 +86,12 @@ describe('StaffService.update', () => {
     expect(result).toEqual(updated);
     expect(invokeMock).toHaveBeenNthCalledWith(1, 'staff_update', {
       id: 1,
-      input: expect.objectContaining({ first_name: 'Carla' })
+      input: expect.objectContaining({ first_name: 'Carla' }),
+      restDays: [2],
+      mainPlaceIds: [3]
     });
-    expect(invokeMock).toHaveBeenNthCalledWith(2, 'staff_rest_days_set', {
-      staffId: 1,
-      weekdays: [2]
-    });
-    expect(invokeMock).toHaveBeenNthCalledWith(3, 'staff_places_set', {
-      staffId: 1,
-      placeIds: [3]
-    });
+    expect(invokeMock).not.toHaveBeenCalledWith('staff_rest_days_set', expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith('staff_places_set', expect.anything());
   });
 });
 

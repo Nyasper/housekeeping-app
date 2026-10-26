@@ -7,7 +7,7 @@ use super::repo;
 use crate::domain::cleaning::repo as cleaning_repo;
 use crate::error::CommandError;
 use crate::util::dates::parse_date;
-use crate::util::files::{resolve_photo_url, store_entity_photo};
+use crate::util::files::{remove_relative_photo, resolve_photo_url, store_entity_photo};
 
 const VALID_INCIDENT_TYPES: [&str; 3] = ["damage", "lost_item", "supply_shortage"];
 const VALID_INCIDENT_STATUSES: [&str; 2] = ["open", "resolved"];
@@ -65,7 +65,7 @@ pub async fn list_incidents(
 
     let normalized_date = trim_optional(filters.date.as_deref());
     if let Some(ref d) = normalized_date {
-        parse_date(d, "incidencia")?;
+        parse_date(d, "de la incidencia")?;
     }
 
     let normalized_filters = IncidentListFilters {
@@ -115,7 +115,7 @@ pub async fn create_incident(
     }
 
     let date = input.date.trim().to_string();
-    parse_date(&date, "incidencia")?;
+    parse_date(&date, "de la incidencia")?;
 
     let service = cleaning_repo::get_service_row(pool, input.service_id)
         .await?
@@ -133,16 +133,44 @@ pub async fn create_incident(
         ));
     }
 
-    let id =
-        repo::insert_incident(pool, input.service_id, &incident_type, &description, &date).await?;
+    let photo_source_path = trim_optional(input.photo_source_path.as_deref());
+    let mut created_id: Option<i64> = None;
+    let mut new_photo: Option<String> = None;
 
-    if let (Some(base_dir), Some(source_raw)) =
-        (data_dir, trim_optional(input.photo_source_path.as_deref()))
-    {
-        let rel_path = store_entity_photo(base_dir, "incidents", id, Path::new(&source_raw), None)?;
-        repo::update_incident_photo_path(pool, id, Some(&rel_path)).await?;
+    let outcome: Result<(), CommandError> = async {
+        let mut transaction = pool.begin().await?;
+        let id = repo::insert_incident(
+            &mut *transaction,
+            input.service_id,
+            &incident_type,
+            &description,
+            &date,
+        )
+        .await?;
+        created_id = Some(id);
+
+        if let (Some(base_dir), Some(source_raw)) = (data_dir, photo_source_path.as_deref()) {
+            let rel_path =
+                store_entity_photo(base_dir, "incidents", id, Path::new(source_raw), None)?;
+            new_photo = Some(rel_path.clone());
+            repo::update_incident_photo_path(&mut *transaction, id, Some(&rel_path)).await?;
+        }
+
+        transaction.commit().await?;
+        Ok(())
+    }
+    .await;
+
+    if let Err(error) = outcome {
+        if let (Some(base_dir), Some(relative)) = (data_dir, new_photo.as_deref()) {
+            remove_relative_photo(base_dir, relative);
+        }
+        return Err(error);
     }
 
+    let id = created_id.ok_or_else(|| {
+        CommandError::new("database", "No se pudo recuperar la incidencia creada.")
+    })?;
     get_incident(pool, data_dir, id).await
 }
 
@@ -252,6 +280,46 @@ mod tests {
         .expect("service");
 
         service.id
+    }
+
+    #[test]
+    fn photo_failure_rolls_back_incident_creation() {
+        tauri::async_runtime::block_on(async {
+            let pool = test_pool().await;
+            let service_id = seed_service(&pool).await;
+            let directory = tempfile::tempdir().expect("tempdir");
+            let data_dir = directory.path().join("appdata");
+            std::fs::create_dir_all(&data_dir).expect("appdata");
+
+            let error = create_incident(
+                &pool,
+                Some(data_dir.as_path()),
+                IncidentInput {
+                    service_id,
+                    incident_type: "damage".to_string(),
+                    description: "Foto faltante.".to_string(),
+                    date: "2026-10-21".to_string(),
+                    photo_source_path: Some(
+                        directory
+                            .path()
+                            .join("missing.png")
+                            .to_string_lossy()
+                            .into_owned(),
+                    ),
+                },
+            )
+            .await
+            .expect_err("missing photo");
+            assert_eq!(error.code, "validation");
+            assert!(
+                list_incidents(&pool, None, IncidentListFilters::default())
+                    .await
+                    .expect("list incidents")
+                    .is_empty()
+            );
+
+            pool.close().await;
+        });
     }
 
     #[test]

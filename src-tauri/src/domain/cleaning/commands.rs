@@ -112,6 +112,7 @@ pub async fn cleaning_suggest_staff(
     count: Option<usize>,
     start_time: Option<String>,
     end_time: Option<String>,
+    exclude_service_id: Option<i64>,
     app: AppHandle,
     state: State<'_, DbState>,
 ) -> Result<Vec<StaffSuggestion>, CommandError> {
@@ -126,6 +127,7 @@ pub async fn cleaning_suggest_staff(
         count,
         start_time.as_deref(),
         end_time.as_deref(),
+        exclude_service_id,
     )
     .await
 }

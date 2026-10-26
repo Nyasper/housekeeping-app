@@ -41,6 +41,7 @@
 
   let managingAbsencesFor = $state<Staff | null>(null);
   let editingAbsence = $state<Absence | null>(null);
+  let deletingAbsence = $state<Absence | null>(null);
   let absenceType = $state<AbsenceType>('medical_certificate');
   let absenceStart = $state(todayIso());
   let absenceEnd = $state(todayIso());
@@ -267,14 +268,26 @@
     }
   }
 
-  async function handleDeleteAbsence(absenceId: number): Promise<void> {
-    const ok = await staffService.deleteAbsence(absenceId);
+  function requestDeleteAbsence(absence: Absence): void {
+    deletingAbsence = absence;
+  }
+
+  async function confirmDeleteAbsence(): Promise<void> {
+    const target = deletingAbsence;
+    if (!target) {
+      return;
+    }
+    const ok = await staffService.deleteAbsence(target.id);
+    deletingAbsence = null;
     if (ok) {
       toastTone = 'success';
       toastMessage = 'Ausencia eliminada.';
-      if (editingAbsence?.id === absenceId) {
+      if (editingAbsence?.id === target.id) {
         resetAbsenceForm();
       }
+    } else if (staffService.error) {
+      toastTone = 'error';
+      toastMessage = staffService.error;
     }
   }
 </script>
@@ -334,11 +347,26 @@
     title={`Ausencias de ${managingAbsencesFor.first_name} ${managingAbsencesFor.last_name}`}
     description="Registrá certificaciones médicas, licencias o faltas puntuales sin superposiciones."
     size="lg"
+    formId="absence-form"
+    submitLabel={editingAbsence ? 'Guardar ausencia' : 'Agregar ausencia'}
     busy={staffService.saving}
     dirty={absenceDirty}
     onclose={closeAbsenceManager}
   >
-    <form class="absence-form" onsubmit={handleAbsenceSubmit}>
+    {#snippet footer()}
+      {#if editingAbsence}
+        <button
+          type="button"
+          class="button button-secondary"
+          onclick={resetAbsenceForm}
+          disabled={staffService.saving}
+        >
+          Cancelar edición
+        </button>
+      {/if}
+    {/snippet}
+
+    <form id="absence-form" class="absence-form" onsubmit={handleAbsenceSubmit}>
       <div class="absence-fields">
         <FormField id="absence-type" label="Tipo de ausencia" required>
           <select id="absence-type" class="input" bind:value={absenceType}>
@@ -370,17 +398,6 @@
       {#if staffService.error}
         <p class="inline-error" role="alert">{staffService.error}</p>
       {/if}
-
-      <div class="absence-form-actions">
-        <button type="submit" class="button button-primary" disabled={staffService.saving}>
-          {editingAbsence ? 'Guardar ausencia' : 'Agregar ausencia'}
-        </button>
-        {#if editingAbsence}
-          <button type="button" class="button button-secondary" onclick={resetAbsenceForm}>
-            Cancelar edición
-          </button>
-        {/if}
-      </div>
     </form>
 
     {#if currentAbsences.length === 0}
@@ -409,7 +426,7 @@
               <button
                 type="button"
                 class="button button-secondary"
-                onclick={() => handleDeleteAbsence(absence.id)}
+                onclick={() => requestDeleteAbsence(absence)}
               >
                 Eliminar
               </button>
@@ -620,6 +637,19 @@
   oncancel={() => (deactivatingStaff = null)}
 />
 
+<ConfirmDialog
+  open={deletingAbsence !== null}
+  title="Eliminar ausencia"
+  description={deletingAbsence
+    ? `¿Querés eliminar la ausencia de ${labelOf(absenceTypeLabels, deletingAbsence.type)} del ${formatDate(deletingAbsence.start_date)} al ${formatDate(deletingAbsence.end_date)}? Esta acción no se puede deshacer.`
+    : ''}
+  confirmLabel="Eliminar ausencia"
+  tone="danger"
+  busy={staffService.saving}
+  onconfirm={confirmDeleteAbsence}
+  oncancel={() => (deletingAbsence = null)}
+/>
+
 <style>
   .filters {
     display: grid;
@@ -789,12 +819,6 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
     gap: var(--space-3);
-  }
-
-  .absence-form-actions {
-    display: flex;
-    gap: var(--space-2);
-    margin-top: var(--space-4);
   }
 
   .inline-error {

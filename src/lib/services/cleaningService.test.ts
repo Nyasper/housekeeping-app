@@ -212,7 +212,8 @@ describe('CleaningServiceManager.suggestStaff', () => {
       date: '2026-10-21',
       count: 10,
       startTime: null,
-      endTime: null
+      endTime: null,
+      excludeServiceId: null
     });
   });
 
@@ -220,7 +221,7 @@ describe('CleaningServiceManager.suggestStaff', () => {
     invokeMock.mockResolvedValueOnce([]);
     const manager = new CleaningServiceManager();
 
-    await manager.suggestStaff(2, 'deep_cleaning', '2026-10-22', '09:00', '11:00', 3);
+    await manager.suggestStaff(2, 'deep_cleaning', '2026-10-22', '09:00', '11:00', 3, 42);
 
     expect(invokeMock).toHaveBeenCalledWith('cleaning_suggest_staff', {
       placeId: 2,
@@ -228,7 +229,8 @@ describe('CleaningServiceManager.suggestStaff', () => {
       date: '2026-10-22',
       count: 3,
       startTime: '09:00',
-      endTime: '11:00'
+      endTime: '11:00',
+      excludeServiceId: 42
     });
   });
 

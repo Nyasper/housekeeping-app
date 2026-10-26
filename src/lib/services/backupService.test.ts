@@ -16,7 +16,7 @@ const originalWindow = globalScope.window;
 
 const manifest: BackupManifest = {
   app_version: '0.1.0',
-  schema_version: 1,
+  schema_version: 2,
   format_version: 1,
   created_at: '2026-10-22T00:00:00Z',
   counts: { staff: 1, places: 1, cleaning_services: 0, incidents: 0 }

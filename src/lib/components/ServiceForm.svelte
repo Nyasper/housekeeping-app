@@ -39,6 +39,7 @@
       date: string;
       startTime: string | null;
       endTime: string | null;
+      excludeServiceId: number | null;
     }) => void;
     onsubmit: (payload: {
       input: CleaningServiceInput;
@@ -198,7 +199,8 @@
       serviceType,
       date: date.trim(),
       startTime: startTime.trim() || null,
-      endTime: endTime.trim() || null
+      endTime: endTime.trim() || null,
+      excludeServiceId: initial?.id ?? null
     };
 
     if (placeId <= 0 || !params.date) {

@@ -30,24 +30,30 @@ pub async fn staff_get(
 #[tauri::command]
 pub async fn staff_create(
     input: StaffInput,
+    rest_days: Option<Vec<i64>>,
+    main_place_ids: Option<Vec<i64>>,
     app: AppHandle,
     state: State<'_, DbState>,
 ) -> Result<Staff, CommandError> {
     let data_dir = db::data_dir(&app)?;
     let pool = state.pool().read().await.clone();
-    service::create_staff(&pool, Some(&data_dir), input).await
+    service::create_staff_with_details(&pool, Some(&data_dir), input, rest_days, main_place_ids)
+        .await
 }
 
 #[tauri::command]
 pub async fn staff_update(
     id: i64,
     input: StaffInput,
+    rest_days: Option<Vec<i64>>,
+    main_place_ids: Option<Vec<i64>>,
     app: AppHandle,
     state: State<'_, DbState>,
 ) -> Result<Staff, CommandError> {
     let data_dir = db::data_dir(&app)?;
     let pool = state.pool().read().await.clone();
-    service::update_staff(&pool, Some(&data_dir), id, input).await
+    service::update_staff_with_details(&pool, Some(&data_dir), id, input, rest_days, main_place_ids)
+        .await
 }
 
 #[tauri::command]

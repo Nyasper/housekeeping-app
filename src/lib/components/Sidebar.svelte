@@ -169,6 +169,7 @@
     <a
       href="/help"
       class={['help-link', { 'is-active': pathname === '/help' }]}
+      aria-label="Ayuda"
       aria-current={pathname === '/help' ? 'page' : undefined}
     >
       <span class="help-icon" aria-hidden="true">

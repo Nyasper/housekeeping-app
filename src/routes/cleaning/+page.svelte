@@ -83,6 +83,15 @@
     await loadSelectedDate();
   }
 
+  function handleDateInput(event: Event): void {
+    const input = event.currentTarget as HTMLInputElement;
+    if (!input.value.trim()) {
+      input.value = dateService.selectedDate;
+      return;
+    }
+    void changeDate(input.value);
+  }
+
   async function goPrevDay(): Promise<void> {
     dateService.previousDay();
     await loadSelectedDate();
@@ -152,13 +161,16 @@
     date: string;
     startTime: string | null;
     endTime: string | null;
+    excludeServiceId: number | null;
   }): void {
     void cleaningService.suggestStaff(
       params.placeId,
       params.serviceType,
       params.date,
       params.startTime,
-      params.endTime
+      params.endTime,
+      10,
+      params.excludeServiceId
     );
   }
 
@@ -205,7 +217,8 @@
 
   async function startServiceNow(service: CleaningService): Promise<void> {
     const start = service.start_time ?? nowTimeIso();
-    const updated = await cleaningService.setStatus(service, 'in_progress', start, null);
+    const endTime = service.end_time && service.end_time <= start ? null : undefined;
+    const updated = await cleaningService.setStatus(service, 'in_progress', start, endTime);
     if (updated) {
       toastTone = 'success';
       toastMessage = `Servicio en ${service.place_name} iniciado (${start}).`;
@@ -216,6 +229,7 @@
   }
 
   function openCompletePrompt(service: CleaningService): void {
+    cleaningService.error = null;
     completingService = service;
     completeDirty = false;
     completeStartTime = service.start_time ?? '09:00';
@@ -336,6 +350,7 @@
       formId="complete-service-form"
       initialStartTime={completeStartTime}
       initialEndTime={completeEndTime}
+      error={cleaningService.error}
       bind:dirty={completeDirty}
       onsubmit={submitCompletePrompt}
     />
@@ -352,7 +367,7 @@
       type="date"
       aria-label="Fecha de los servicios"
       value={dateService.selectedDate}
-      onchange={(e) => changeDate((e.currentTarget as HTMLInputElement).value)}
+      onchange={handleDateInput}
     />
     <button type="button" class="button button-secondary" onclick={goNextDay}>
       Día siguiente →
@@ -451,8 +466,10 @@
                 {#if duration !== null}
                   · Duración: {formatDurationMinutes(duration)}
                 {/if}
-              {:else if service.start_time}
+              {:else if service.status === 'in_progress' && service.start_time}
                 Inicio: {formatTime(service.start_time)} · En curso
+              {:else if service.start_time}
+                Inicio registrado: {formatTime(service.start_time)}
               {:else}
                 Horario sin definir
               {/if}

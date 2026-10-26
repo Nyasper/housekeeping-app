@@ -23,6 +23,10 @@
     oncancel
   }: Props = $props();
 
+  const uid = $props.id();
+  const titleId = `confirm-dialog-title-${uid}`;
+  const descriptionId = `confirm-dialog-desc-${uid}`;
+
   function syncDialog(dialog: HTMLDialogElement) {
     if (open && !dialog.open) {
       dialog.showModal();
@@ -48,14 +52,14 @@
 <dialog
   {@attach syncDialog}
   class="confirm-dialog panel"
-  aria-labelledby="confirm-dialog-title"
-  aria-describedby="confirm-dialog-desc"
+  aria-labelledby={titleId}
+  aria-describedby={descriptionId}
   oncancel={handleDialogCancel}
   onclick={handleBackdropClick}
 >
   <div class="dialog-body">
-    <h2 id="confirm-dialog-title">{title}</h2>
-    <p id="confirm-dialog-desc">{description}</p>
+    <h2 id={titleId}>{title}</h2>
+    <p id={descriptionId}>{description}</p>
     <div class="dialog-actions">
       <button type="button" class="button button-secondary" onclick={oncancel} disabled={busy}>
         {cancelLabel}
@@ -112,7 +116,7 @@
 
   .button-danger {
     background: var(--color-danger);
-    color: #ffffff;
+    color: var(--color-on-danger);
   }
 
   .button-danger:hover:not(:disabled) {

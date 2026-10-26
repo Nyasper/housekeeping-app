@@ -35,6 +35,7 @@
 
   const uid = $props.id();
   const titleId = `modal-title-${uid}`;
+  const descriptionId = `modal-description-${uid}`;
 
   function syncDialog(dialog: HTMLDialogElement) {
     if (open && !dialog.open) {
@@ -68,6 +69,7 @@
   {@attach syncDialog}
   class="modal panel size-{size}"
   aria-labelledby={titleId}
+  aria-describedby={description ? descriptionId : undefined}
   oncancel={handleCancel}
   onclick={handleBackdropClick}
 >
@@ -75,7 +77,7 @@
     <div class="modal-heading">
       <h2 id={titleId}>{title}</h2>
       {#if description}
-        <p>{description}</p>
+        <p id={descriptionId}>{description}</p>
       {/if}
     </div>
     <button

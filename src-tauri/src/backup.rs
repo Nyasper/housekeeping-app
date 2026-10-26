@@ -23,7 +23,7 @@ const DB_ARCHIVE_ENTRY: &str = "housekeeping.db";
 const MANIFEST_ARCHIVE_ENTRY: &str = "manifest.json";
 const PHOTOS_ARCHIVE_PREFIX: &str = "photos/";
 const BACKUP_FORMAT_VERSION: u32 = 1;
-const SCHEMA_VERSION: u32 = 1;
+const SCHEMA_VERSION: u32 = 2;
 
 const BACKUP_SCHEMA: &[(&str, &[&str])] = &[
     (
@@ -72,6 +72,7 @@ const BACKUP_SCHEMA: &[(&str, &[&str])] = &[
             "check_in_date",
             "check_out_date",
             "is_active",
+            "cancelled_at",
             "notes",
             "created_at",
             "updated_at",
@@ -997,7 +998,7 @@ mod tests {
                 zip.start_file("manifest.json", opts).expect("manifest");
                 let manifest = BackupManifest {
                     app_version: "0.1.0".to_string(),
-                    schema_version: 1,
+                    schema_version: 2,
                     format_version: 1,
                     created_at: "2026-10-10T00:00:00Z".to_string(),
                     counts: BackupCounts {

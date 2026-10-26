@@ -337,6 +337,7 @@ pub async fn get_recent_service_counts_map(
     pool: &SqlitePool,
     from_date: &str,
     to_date: &str,
+    exclude_service_id: Option<i64>,
 ) -> Result<HashMap<i64, i64>, sqlx::Error> {
     let rows = sqlx::query_as::<_, (i64, i64)>(
         "SELECT ss.staff_id, COUNT(*) AS cnt
@@ -344,11 +345,13 @@ pub async fn get_recent_service_counts_map(
          INNER JOIN cleaning_service cs ON cs.id = ss.service_id
          WHERE cs.date >= ?1
            AND cs.date <= ?2
+           AND (?3 IS NULL OR cs.id != ?3)
            AND cs.status != 'cancelled'
          GROUP BY ss.staff_id",
     )
     .bind(from_date)
     .bind(to_date)
+    .bind(exclude_service_id)
     .fetch_all(pool)
     .await?;
 

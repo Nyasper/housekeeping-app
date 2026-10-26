@@ -30,8 +30,20 @@
   const selectedIds = $derived(new Set(selected.map((item) => item.staff_id)));
   const suggestedIds = $derived(new Set(suggestions.map((item) => item.staff.id)));
 
+  const selectedActiveMembers = $derived(
+    selected
+      .map((item) => allStaff.find((member) => member.id === item.staff_id))
+      .filter(
+        (member): member is Staff =>
+          member !== undefined && member.is_active && !suggestedIds.has(member.id)
+      )
+  );
+
   const extraActiveStaff = $derived(
-    allStaff.filter((member) => member.is_active && !suggestedIds.has(member.id))
+    allStaff.filter(
+      (member) =>
+        member.is_active && !suggestedIds.has(member.id) && !selectedIds.has(member.id)
+    )
   );
 
   const selectedInactiveMembers = $derived(
@@ -209,6 +221,59 @@
     </ul>
   {/if}
 
+  {#if selectedActiveMembers.length > 0}
+    <div
+      class="inactive-assigned current-assigned"
+      role="group"
+      aria-label="Personal ya asignado al servicio"
+    >
+      <p class="status-note">
+        Estos funcionarios ya están asignados al servicio. Si no aparecen en las sugerencias, podés
+        gestionarlos acá, quitarlos o cambiar el responsable.
+      </p>
+      <ul class="candidate-grid">
+        {#each selectedActiveMembers as member (member.id)}
+          {@const lead = isLead(member.id)}
+          <li class="candidate-card is-selected">
+            <div class="candidate-main">
+              <label class="candidate-check">
+                <input
+                  type="checkbox"
+                  checked
+                  onchange={() => toggleStaff(member.id)}
+                  {disabled}
+                />
+                <Avatar
+                  photoUrl={member.photo_url}
+                  gender={member.gender}
+                  alt={`Foto de ${member.first_name} ${member.last_name}`}
+                  size="sm"
+                />
+                <span class="candidate-info">
+                  <span class="candidate-name">
+                    {member.first_name} {member.last_name}
+                  </span>
+                  <span class="candidate-role">
+                    {labelOf(staffRoleLabels, member.role)} · Asignación actual
+                  </span>
+                </span>
+              </label>
+
+              <button
+                type="button"
+                class={`lead-toggle ${lead ? 'is-lead' : ''}`}
+                onclick={() => setLead(member.id)}
+                {disabled}
+              >
+                {lead ? 'Responsable principal' : 'Marcar responsable'}
+              </button>
+            </div>
+          </li>
+        {/each}
+      </ul>
+    </div>
+  {/if}
+
   {#if extraActiveStaff.length > 0}
     <div class="manual-override">
       <button
@@ -324,6 +389,11 @@
 
   .candidate-card.is-inactive {
     border-color: var(--color-warning);
+  }
+
+  .current-assigned {
+    border-color: var(--color-line-strong);
+    background: var(--color-surface-raised);
   }
 
   .candidate-grid {

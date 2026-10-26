@@ -33,6 +33,7 @@
   let toastMessage = $state<string | null>(null);
   let toastTone = $state<'success' | 'warning' | 'error'>('success');
 
+  const rangeIncomplete = $derived(!rangeFrom || !rangeTo);
   const rangeInvalid = $derived(
     Boolean(rangeFrom && rangeTo && rangeFrom > rangeTo)
   );
@@ -82,17 +83,20 @@
 
   async function loadActiveTab(): Promise<void> {
     if (activeTab === 'services_by_staff' || activeTab === 'average_times') {
-      if (rangeInvalid || !rangeFrom || !rangeTo) {
+      if (rangeIncomplete || rangeInvalid) {
+        reportsService.clearRangeReports();
         return;
       }
       await reportsService.loadRangeReports({ from: rangeFrom, to: rangeTo });
     } else if (activeTab === 'absences_by_month') {
       if (!selectedMonth) {
+        reportsService.clearAbsencesByMonth();
         return;
       }
       await reportsService.loadAbsencesByMonth(selectedMonth);
     } else if (activeTab === 'daily_sheet') {
       if (!sheetDate) {
+        reportsService.clearDailySheet();
         return;
       }
       await reportsService.loadDailySheet(sheetDate);
@@ -368,9 +372,11 @@
     </div>
   </div>
 
-  {#if (activeTab === 'services_by_staff' || activeTab === 'average_times') && rangeInvalid}
+  {#if (activeTab === 'services_by_staff' || activeTab === 'average_times') && (rangeIncomplete || rangeInvalid)}
     <p class="range-error" role="alert">
-      La fecha de inicio no puede ser posterior a la fecha de fin.
+      {rangeIncomplete
+        ? 'Seleccioná ambas fechas para consultar el reporte.'
+        : 'La fecha de inicio no puede ser posterior a la fecha de fin.'}
     </p>
   {/if}
 </section>
@@ -410,6 +416,16 @@
 
     {#if reportsService.loading && reportsService.servicesByStaff.length === 0}
       <p class="loading-state" role="status">Calculando servicios por funcionario…</p>
+    {:else if rangeIncomplete}
+      <EmptyState
+        title="Seleccioná el período"
+        description="Ingresá la fecha de inicio y la de fin para consultar los servicios por funcionario."
+      />
+    {:else if rangeInvalid}
+      <EmptyState
+        title="El período no es válido"
+        description="La fecha de inicio no puede ser posterior a la fecha de fin."
+      />
     {:else if reportsService.servicesByStaff.length === 0}
       <EmptyState
         title="Sin datos de personal en este rango"
@@ -473,6 +489,16 @@
 
     {#if reportsService.loading && reportsService.averageTimes.length === 0}
       <p class="loading-state" role="status">Calculando tiempos promedio…</p>
+    {:else if rangeIncomplete}
+      <EmptyState
+        title="Seleccioná el período"
+        description="Ingresá la fecha de inicio y la de fin para consultar los tiempos promedio."
+      />
+    {:else if rangeInvalid}
+      <EmptyState
+        title="El período no es válido"
+        description="La fecha de inicio no puede ser posterior a la fecha de fin."
+      />
     {:else if reportsService.averageTimes.length === 0}
       <EmptyState
         title="Sin tiempos promedio disponibles"
@@ -533,6 +559,11 @@
 
     {#if reportsService.loading && reportsService.absencesByMonth.length === 0}
       <p class="loading-state" role="status">Calculando ausencias del mes…</p>
+    {:else if !selectedMonth}
+      <EmptyState
+        title="Seleccioná un mes"
+        description="Elegí el mes para consultar las ausencias y licencias."
+      />
     {:else if reportsService.absencesByMonth.length === 0}
       <EmptyState
         title="Sin ausencias registradas en este mes"
@@ -596,6 +627,11 @@
 
     {#if reportsService.loading && reportsService.dailySheet.length === 0}
       <p class="loading-state" role="status">Cargando planilla diaria…</p>
+    {:else if !sheetDate}
+      <EmptyState
+        title="Seleccioná una fecha"
+        description="Elegí la fecha de la planilla diaria que querés consultar."
+      />
     {:else if reportsService.dailySheet.length === 0}
       <EmptyState
         title="Sin servicios registrados en esta fecha"
@@ -647,7 +683,7 @@
                     <span class="text-muted">Sin incidencias</span>
                   {:else}
                     <ul class="incidents-mini-list">
-                      {#each row.incidents_summary as item (item)}
+                      {#each row.incidents_summary as item, incidentIndex (incidentIndex)}
                         <li>{item}</li>
                       {/each}
                     </ul>

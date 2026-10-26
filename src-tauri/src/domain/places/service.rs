@@ -61,8 +61,8 @@ fn validate_place_input(input: PlaceInput) -> Result<NormalizedPlaceInput, Comma
         ));
     }
 
-    let check_in_date = normalize_optional_date(input.check_in_date.as_deref(), "ingreso")?;
-    let check_out_date = normalize_optional_date(input.check_out_date.as_deref(), "egreso")?;
+    let check_in_date = normalize_optional_date(input.check_in_date.as_deref(), "de ingreso")?;
+    let check_out_date = normalize_optional_date(input.check_out_date.as_deref(), "de egreso")?;
 
     if place_type == "common_area"
         && (raw_status.is_some() || check_in_date.is_some() || check_out_date.is_some())
@@ -74,7 +74,7 @@ fn validate_place_input(input: PlaceInput) -> Result<NormalizedPlaceInput, Comma
     }
 
     if let (Some(start), Some(end)) = (check_in_date.as_deref(), check_out_date.as_deref()) {
-        validate_date_range(start, end, "la estadía del apartamento")?;
+        validate_date_range(start, end, "de la estadía del apartamento")?;
     }
 
     Ok(NormalizedPlaceInput {
@@ -116,12 +116,25 @@ fn map_row_to_place(row: PlaceRow, reference_date: NaiveDate, settings: AppSetti
     }
 }
 
+fn normalize_place_name(name: &str) -> String {
+    name.split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
+}
+
 async fn ensure_unique_place_name(
     pool: &SqlitePool,
     name: &str,
     exclude_id: Option<i64>,
 ) -> Result<(), CommandError> {
-    if let Some(existing) = repo::find_by_name_nocase(pool, name).await?
+    let normalized_name = normalize_place_name(name);
+    let existing = repo::list_place_rows(pool)
+        .await?
+        .into_iter()
+        .find(|place| normalize_place_name(&place.name) == normalized_name);
+
+    if let Some(existing) = existing
         && Some(existing.id) != exclude_id
     {
         if existing.is_active == 0 {
@@ -152,7 +165,7 @@ pub async fn list_places_for_date(
     let rows = repo::list_place_rows(pool).await?;
     let app_settings = settings::get_settings(pool).await?;
     let reference_date = match date.map(str::trim).filter(|s| !s.is_empty()) {
-        Some(raw) => parse_date(raw, "referencia")?,
+        Some(raw) => parse_date(raw, "de referencia")?,
         None => Local::now().date_naive(),
     };
 
@@ -202,8 +215,9 @@ pub async fn update_place(
     let normalized = validate_place_input(input)?;
     ensure_unique_place_name(pool, &normalized.name, Some(id)).await?;
 
-    repo::update_place(
-        pool,
+    let mut transaction = pool.begin().await?;
+    let affected = repo::update_place(
+        &mut *transaction,
         id,
         &normalized.name,
         &normalized.place_type,
@@ -214,11 +228,18 @@ pub async fn update_place(
         normalized.notes.as_deref(),
     )
     .await?;
-
-    if normalized.place_type != "apartment" {
-        repo::remove_place_from_staff_places(pool, id).await?;
+    if affected == 0 {
+        return Err(CommandError::new(
+            "not_found",
+            "No se encontró el lugar solicitado.",
+        ));
     }
 
+    if normalized.place_type != "apartment" {
+        repo::remove_place_from_staff_places(&mut *transaction, id).await?;
+    }
+
+    transaction.commit().await?;
     get_place(pool, id).await
 }
 
@@ -261,7 +282,7 @@ pub async fn recommended_task(
     let row = repo::get_place_row(pool, place_id)
         .await?
         .ok_or_else(|| CommandError::new("not_found", "No se encontró el lugar solicitado."))?;
-    let ref_date = parse_date(date, "referencia")?;
+    let ref_date = parse_date(date, "de referencia")?;
     let app_settings = settings::get_settings(pool).await?;
 
     let rec = compute_recommended_task(
@@ -322,6 +343,15 @@ mod tests {
                 .await
                 .expect_err("case-insensitive duplicate");
             assert_eq!(dup.code, "duplicate");
+
+            // Unicode case-insensitive duplicate rejected
+            create_place(&pool, sample_apartment("Ático"))
+                .await
+                .expect("accented place");
+            let accented_dup = create_place(&pool, sample_apartment("ático"))
+                .await
+                .expect_err("unicode case-insensitive duplicate");
+            assert_eq!(accented_dup.code, "duplicate");
 
             // Common area cannot have dates or status
             let bad_common = create_place(

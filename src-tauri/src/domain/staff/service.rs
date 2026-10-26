@@ -37,6 +37,48 @@ fn trim_optional(value: Option<&str>) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
+fn normalize_national_id(value: &str) -> String {
+    value
+        .chars()
+        .filter(|character| character.is_alphanumeric())
+        .collect::<String>()
+        .to_uppercase()
+}
+
+fn normalize_rest_days(weekdays: Vec<i64>) -> Result<Vec<i64>, CommandError> {
+    let mut unique: BTreeSet<i64> = BTreeSet::new();
+    for day in weekdays {
+        if !(0..=6).contains(&day) {
+            return Err(CommandError::new(
+                "validation",
+                "Los días de descanso deben estar entre 0 (lunes) y 6 (domingo).",
+            ));
+        }
+        unique.insert(day);
+    }
+    Ok(unique.into_iter().collect())
+}
+
+async fn normalize_main_place_ids(
+    pool: &SqlitePool,
+    place_ids: Vec<i64>,
+) -> Result<Vec<i64>, CommandError> {
+    let requested_ids: Vec<i64> = place_ids
+        .into_iter()
+        .collect::<BTreeSet<i64>>()
+        .into_iter()
+        .collect();
+
+    let valid_count = repo::count_valid_active_apartments(pool, &requested_ids).await?;
+    if valid_count != requested_ids.len() {
+        return Err(CommandError::new(
+            "validation",
+            "Los apartamentos principales deben ser apartamentos activos existentes.",
+        ));
+    }
+    Ok(requested_ids)
+}
+
 fn validate_staff_input(input: StaffInput) -> Result<NormalizedStaffInput, CommandError> {
     let first_name = input.first_name.trim().to_string();
     if first_name.is_empty() {
@@ -54,7 +96,7 @@ fn validate_staff_input(input: StaffInput) -> Result<NormalizedStaffInput, Comma
         ));
     }
 
-    let national_id = input.national_id.trim().to_string();
+    let national_id = normalize_national_id(&input.national_id);
     if national_id.is_empty() {
         return Err(CommandError::new(
             "validation",
@@ -78,15 +120,17 @@ fn validate_staff_input(input: StaffInput) -> Result<NormalizedStaffInput, Comma
         ));
     }
 
-    let birth_date = normalize_optional_date(input.birth_date.as_deref(), "nacimiento")?;
+    let birth_date = normalize_optional_date(input.birth_date.as_deref(), "de nacimiento")?;
     let phone = trim_optional(input.phone.as_deref());
     let address = trim_optional(input.address.as_deref());
     let notes = trim_optional(input.notes.as_deref());
 
-    let raw_season_start =
-        normalize_optional_date(input.season_start_date.as_deref(), "inicio de temporada")?;
+    let raw_season_start = normalize_optional_date(
+        input.season_start_date.as_deref(),
+        "de inicio de la temporada",
+    )?;
     let raw_season_end =
-        normalize_optional_date(input.season_end_date.as_deref(), "fin de temporada")?;
+        normalize_optional_date(input.season_end_date.as_deref(), "de fin de la temporada")?;
 
     let (season_start_date, season_end_date) = if !input.is_seasonal {
         if raw_season_start.is_some() || raw_season_end.is_some() {
@@ -100,7 +144,7 @@ fn validate_staff_input(input: StaffInput) -> Result<NormalizedStaffInput, Comma
         match (raw_season_start, raw_season_end) {
             (None, None) => (None, None),
             (Some(start), Some(end)) => {
-                validate_date_range(&start, &end, "la temporada")?;
+                validate_date_range(&start, &end, "de la temporada")?;
                 (Some(start), Some(end))
             }
             _ => {
@@ -207,7 +251,13 @@ async fn ensure_unique_national_id(
     national_id: &str,
     exclude_id: Option<i64>,
 ) -> Result<(), CommandError> {
-    if let Some(existing) = repo::find_by_national_id(pool, national_id).await?
+    let normalized_id = normalize_national_id(national_id);
+    let existing = repo::list_staff_rows(pool)
+        .await?
+        .into_iter()
+        .find(|row| normalize_national_id(&row.national_id) == normalized_id);
+
+    if let Some(existing) = existing
         && Some(existing.id) != exclude_id
     {
         if existing.is_active == 0 {
@@ -215,7 +265,7 @@ async fn ensure_unique_national_id(
                 "duplicate",
                 format!(
                     "Ya existe un funcionario dado de baja con la cédula {} ({} {}). Podés reactivarlo desde el listado.",
-                    national_id, existing.first_name, existing.last_name
+                    normalized_id, existing.first_name, existing.last_name
                 ),
             ));
         }
@@ -223,7 +273,7 @@ async fn ensure_unique_national_id(
             "duplicate",
             format!(
                 "Ya existe un funcionario registrado con la cédula {}.",
-                national_id
+                normalized_id
             ),
         ));
     }
@@ -235,32 +285,77 @@ pub async fn create_staff(
     data_dir: Option<&Path>,
     input: StaffInput,
 ) -> Result<Staff, CommandError> {
+    create_staff_with_details(pool, data_dir, input, None, None).await
+}
+
+pub async fn create_staff_with_details(
+    pool: &SqlitePool,
+    data_dir: Option<&Path>,
+    input: StaffInput,
+    rest_days: Option<Vec<i64>>,
+    main_place_ids: Option<Vec<i64>>,
+) -> Result<Staff, CommandError> {
     let normalized = validate_staff_input(input)?;
     ensure_unique_national_id(pool, &normalized.national_id, None).await?;
+    let normalized_rest_days = rest_days.map(normalize_rest_days).transpose()?;
+    let normalized_place_ids = match main_place_ids {
+        Some(place_ids) => Some(normalize_main_place_ids(pool, place_ids).await?),
+        None => None,
+    };
 
-    let id = repo::insert_staff(
-        pool,
-        &normalized.first_name,
-        &normalized.last_name,
-        normalized.birth_date.as_deref(),
-        normalized.phone.as_deref(),
-        &normalized.national_id,
-        normalized.address.as_deref(),
-        &normalized.gender,
-        &normalized.role,
-        normalized.is_seasonal,
-        normalized.season_start_date.as_deref(),
-        normalized.season_end_date.as_deref(),
-        normalized.notes.as_deref(),
-    )
-    .await?;
+    let mut created_id: Option<i64> = None;
+    let mut new_photo: Option<String> = None;
 
-    if let (Some(base_dir), Some(source_path)) = (data_dir, normalized.photo_source_path.as_deref())
-    {
-        let relative = store_entity_photo(base_dir, "staff", id, Path::new(source_path), None)?;
-        repo::update_photo_path(pool, id, Some(&relative)).await?;
+    let outcome: Result<(), CommandError> = async {
+        let mut transaction = pool.begin().await?;
+        let id = repo::insert_staff(
+            &mut *transaction,
+            &normalized.first_name,
+            &normalized.last_name,
+            normalized.birth_date.as_deref(),
+            normalized.phone.as_deref(),
+            &normalized.national_id,
+            normalized.address.as_deref(),
+            &normalized.gender,
+            &normalized.role,
+            normalized.is_seasonal,
+            normalized.season_start_date.as_deref(),
+            normalized.season_end_date.as_deref(),
+            normalized.notes.as_deref(),
+        )
+        .await?;
+        created_id = Some(id);
+
+        if let (Some(base_dir), Some(source_path)) =
+            (data_dir, normalized.photo_source_path.as_deref())
+        {
+            let relative = store_entity_photo(base_dir, "staff", id, Path::new(source_path), None)?;
+            new_photo = Some(relative.clone());
+            repo::update_photo_path(&mut *transaction, id, Some(&relative)).await?;
+        }
+
+        if let Some(days) = normalized_rest_days.as_deref() {
+            repo::replace_rest_days_in_tx(&mut transaction, id, days).await?;
+        }
+        if let Some(place_ids) = normalized_place_ids.as_deref() {
+            repo::replace_staff_places_in_tx(&mut transaction, id, place_ids).await?;
+        }
+
+        transaction.commit().await?;
+        Ok(())
+    }
+    .await;
+
+    if let Err(error) = outcome {
+        if let (Some(base_dir), Some(relative)) = (data_dir, new_photo.as_deref()) {
+            remove_relative_photo(base_dir, relative);
+        }
+        return Err(error);
     }
 
+    let id = created_id.ok_or_else(|| {
+        CommandError::new("database", "No se pudo recuperar el funcionario creado.")
+    })?;
     get_staff(pool, data_dir, id).await
 }
 
@@ -270,49 +365,94 @@ pub async fn update_staff(
     id: i64,
     input: StaffInput,
 ) -> Result<Staff, CommandError> {
+    update_staff_with_details(pool, data_dir, id, input, None, None).await
+}
+
+pub async fn update_staff_with_details(
+    pool: &SqlitePool,
+    data_dir: Option<&Path>,
+    id: i64,
+    input: StaffInput,
+    rest_days: Option<Vec<i64>>,
+    main_place_ids: Option<Vec<i64>>,
+) -> Result<Staff, CommandError> {
     let existing = repo::get_staff_row(pool, id).await?.ok_or_else(|| {
         CommandError::new("not_found", "No se encontró el funcionario solicitado.")
     })?;
 
     let normalized = validate_staff_input(input)?;
     ensure_unique_national_id(pool, &normalized.national_id, Some(id)).await?;
+    let normalized_rest_days = rest_days.map(normalize_rest_days).transpose()?;
+    let normalized_place_ids = match main_place_ids {
+        Some(place_ids) => Some(normalize_main_place_ids(pool, place_ids).await?),
+        None => None,
+    };
 
-    repo::update_staff(
-        pool,
-        id,
-        &normalized.first_name,
-        &normalized.last_name,
-        normalized.birth_date.as_deref(),
-        normalized.phone.as_deref(),
-        &normalized.national_id,
-        normalized.address.as_deref(),
-        &normalized.gender,
-        &normalized.role,
-        normalized.is_seasonal,
-        normalized.season_start_date.as_deref(),
-        normalized.season_end_date.as_deref(),
-        normalized.notes.as_deref(),
-    )
-    .await?;
+    let mut new_photo: Option<String> = None;
+
+    let outcome: Result<(), CommandError> = async {
+        let mut transaction = pool.begin().await?;
+        let affected = repo::update_staff(
+            &mut *transaction,
+            id,
+            &normalized.first_name,
+            &normalized.last_name,
+            normalized.birth_date.as_deref(),
+            normalized.phone.as_deref(),
+            &normalized.national_id,
+            normalized.address.as_deref(),
+            &normalized.gender,
+            &normalized.role,
+            normalized.is_seasonal,
+            normalized.season_start_date.as_deref(),
+            normalized.season_end_date.as_deref(),
+            normalized.notes.as_deref(),
+        )
+        .await?;
+        if affected == 0 {
+            return Err(CommandError::new(
+                "not_found",
+                "No se encontró el funcionario solicitado.",
+            ));
+        }
+
+        if let (Some(base_dir), Some(source_path)) =
+            (data_dir, normalized.photo_source_path.as_deref())
+        {
+            let relative = store_entity_photo(base_dir, "staff", id, Path::new(source_path), None)?;
+            new_photo = Some(relative.clone());
+            repo::update_photo_path(&mut *transaction, id, Some(&relative)).await?;
+        } else if normalized.remove_photo {
+            repo::update_photo_path(&mut *transaction, id, None).await?;
+        }
+
+        if let Some(days) = normalized_rest_days.as_deref() {
+            repo::replace_rest_days_in_tx(&mut transaction, id, days).await?;
+        }
+        if let Some(place_ids) = normalized_place_ids.as_deref() {
+            let mut final_places: BTreeSet<i64> = place_ids.iter().copied().collect();
+            final_places.extend(repo::list_inactive_staff_place_ids(&mut *transaction, id).await?);
+            let final_places: Vec<i64> = final_places.into_iter().collect();
+            repo::replace_staff_places_in_tx(&mut transaction, id, &final_places).await?;
+        }
+
+        transaction.commit().await?;
+        Ok(())
+    }
+    .await;
+
+    if let Err(error) = outcome {
+        if let (Some(base_dir), Some(relative)) = (data_dir, new_photo.as_deref()) {
+            remove_relative_photo(base_dir, relative);
+        }
+        return Err(error);
+    }
 
     if let Some(base_dir) = data_dir {
-        if let Some(source_path) = normalized.photo_source_path.as_deref() {
-            let relative = store_entity_photo(
-                base_dir,
-                "staff",
-                id,
-                Path::new(source_path),
-                existing.photo_path.as_deref(),
-            )?;
-            repo::update_photo_path(pool, id, Some(&relative)).await?;
-        } else if normalized.remove_photo {
-            if let Some(previous) = existing.photo_path.as_deref() {
-                remove_relative_photo(base_dir, previous);
-            }
-            repo::update_photo_path(pool, id, None).await?;
+        let photo_changed = normalized.photo_source_path.is_some() || normalized.remove_photo;
+        if photo_changed && let Some(previous) = existing.photo_path.as_deref() {
+            remove_relative_photo(base_dir, previous);
         }
-    } else if normalized.remove_photo {
-        repo::update_photo_path(pool, id, None).await?;
     }
 
     get_staff(pool, data_dir, id).await
@@ -386,19 +526,7 @@ pub async fn set_staff_places(
         CommandError::new("not_found", "No se encontró el funcionario solicitado.")
     })?;
 
-    let requested_ids: Vec<i64> = place_ids
-        .into_iter()
-        .collect::<BTreeSet<i64>>()
-        .into_iter()
-        .collect();
-
-    let valid_count = repo::count_valid_active_apartments(pool, &requested_ids).await?;
-    if valid_count != requested_ids.len() {
-        return Err(CommandError::new(
-            "validation",
-            "Los apartamentos principales deben ser apartamentos activos existentes.",
-        ));
-    }
+    let requested_ids = normalize_main_place_ids(pool, place_ids).await?;
 
     let mut final_ids: BTreeSet<i64> = requested_ids.into_iter().collect();
     final_ids.extend(repo::list_inactive_staff_place_ids(pool, staff_id).await?);
@@ -424,18 +552,7 @@ pub async fn set_rest_days(
         CommandError::new("not_found", "No se encontró el funcionario solicitado.")
     })?;
 
-    let mut unique: BTreeSet<i64> = BTreeSet::new();
-    for day in weekdays {
-        if !(0..=6).contains(&day) {
-            return Err(CommandError::new(
-                "validation",
-                "Los días de descanso deben estar entre 0 (lunes) y 6 (domingo).",
-            ));
-        }
-        unique.insert(day);
-    }
-
-    let sorted: Vec<i64> = unique.into_iter().collect();
+    let sorted = normalize_rest_days(weekdays)?;
     repo::replace_rest_days(pool, staff_id, &sorted).await?;
     Ok(sorted)
 }
@@ -464,8 +581,8 @@ fn validate_absence_input(input: AbsenceInput) -> Result<NormalizedAbsenceInput,
         ));
     }
 
-    let start_parsed = parse_date(&input.start_date, "inicio de la ausencia")?;
-    let end_parsed = parse_date(&input.end_date, "fin de la ausencia")?;
+    let start_parsed = parse_date(&input.start_date, "de inicio de la ausencia")?;
+    let end_parsed = parse_date(&input.end_date, "de fin de la ausencia")?;
     if start_parsed > end_parsed {
         return Err(CommandError::new(
             "validation",
@@ -655,6 +772,58 @@ mod tests {
     }
 
     #[test]
+    fn national_id_is_normalized_before_uniqueness_checks() {
+        tauri::async_runtime::block_on(async {
+            let pool = test_pool().await;
+
+            let created = create_staff(&pool, None, sample_input("5.123.456-7"))
+                .await
+                .expect("formatted national id");
+            assert_eq!(created.national_id, "51234567");
+
+            let duplicate = create_staff(&pool, None, sample_input("51234567"))
+                .await
+                .expect_err("normalized duplicate");
+            assert_eq!(duplicate.code, "duplicate");
+
+            pool.close().await;
+        });
+    }
+
+    #[test]
+    fn photo_failure_rolls_back_staff_creation() {
+        tauri::async_runtime::block_on(async {
+            let pool = test_pool().await;
+            let directory = tempfile::tempdir().expect("tempdir");
+            let data_dir = directory.path().join("appdata");
+            std::fs::create_dir_all(&data_dir).expect("appdata");
+
+            let mut input = sample_input("30000099");
+            input.photo_source_path = Some(
+                directory
+                    .path()
+                    .join("missing.png")
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+
+            let error =
+                create_staff_with_details(&pool, Some(data_dir.as_path()), input, None, None)
+                    .await
+                    .expect_err("missing photo");
+            assert_eq!(error.code, "validation");
+            assert!(
+                list_staff(&pool, None)
+                    .await
+                    .expect("list staff")
+                    .is_empty()
+            );
+
+            pool.close().await;
+        });
+    }
+
+    #[test]
     fn seasonal_validation_rules() {
         tauri::async_runtime::block_on(async {
             let pool = test_pool().await;
@@ -741,6 +910,19 @@ mod tests {
                 .expect("assign active apartment");
             assert_eq!(updated.main_places.len(), 1);
             assert_eq!(updated.main_places[0].name, "Apto 101");
+
+            let detailed = create_staff_with_details(
+                &pool,
+                None,
+                sample_input("22223334"),
+                Some(vec![6, 0, 6]),
+                Some(vec![1]),
+            )
+            .await
+            .expect("create staff with relations");
+            assert_eq!(detailed.rest_days, vec![0, 6]);
+            assert_eq!(detailed.main_places.len(), 1);
+            assert_eq!(detailed.main_places[0].id, 1);
 
             // Common area rejected
             let err_common = set_staff_places(&pool, None, staff.id, vec![2])

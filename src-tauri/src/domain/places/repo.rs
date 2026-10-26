@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{Executor, Sqlite, SqlitePool};
 
 use super::model::PlaceRow;
 
@@ -85,8 +85,8 @@ pub async fn insert_place(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn update_place(
-    pool: &SqlitePool,
+pub async fn update_place<'e, E>(
+    executor: E,
     id: i64,
     name: &str,
     place_type: &str,
@@ -95,7 +95,10 @@ pub async fn update_place(
     check_in_date: Option<&str>,
     check_out_date: Option<&str>,
     notes: Option<&str>,
-) -> Result<u64, sqlx::Error> {
+) -> Result<u64, sqlx::Error>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     let result = sqlx::query(
         "UPDATE place SET
             name = ?1,
@@ -124,19 +127,22 @@ pub async fn update_place(
     .bind(check_out_date)
     .bind(notes)
     .bind(id)
-    .execute(pool)
+    .execute(executor)
     .await?;
 
     Ok(result.rows_affected())
 }
 
-pub async fn remove_place_from_staff_places(
-    pool: &SqlitePool,
+pub async fn remove_place_from_staff_places<'e, E>(
+    executor: E,
     place_id: i64,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), sqlx::Error>
+where
+    E: Executor<'e, Database = Sqlite>,
+{
     sqlx::query("DELETE FROM staff_place WHERE place_id = ?1")
         .bind(place_id)
-        .execute(pool)
+        .execute(executor)
         .await?;
     Ok(())
 }
