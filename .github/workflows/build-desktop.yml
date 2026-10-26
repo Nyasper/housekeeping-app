@@ -159,8 +159,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          mapfile -d '' -t assets < <(find dist -type f -print0)
+          if (( ${#assets[@]} == 0 )); then
+            echo "No hay archivos para publicar en dist/." >&2
+            exit 1
+          fi
+
           gh release delete "$GITHUB_REF_NAME" --yes || true
-          gh release create "$GITHUB_REF_NAME" dist/* \
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
             --title "Gestion de Limpieza $GITHUB_REF_NAME" \
             --notes-file release-notes.md \
             --verify-tag
