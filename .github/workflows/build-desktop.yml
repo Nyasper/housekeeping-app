@@ -1,0 +1,166 @@
+name: Build desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows: NSIS installer plus the plain executable (portable).
+          - name: Windows
+            platform: windows-latest
+            args: "--bundles nsis"
+            artifact: housekeeping-app-windows
+            paths: |
+              src-tauri/target/release/bundle/nsis/*.exe
+              src-tauri/target/release/*-portable.exe
+
+          # Linux: Debian, Fedora and portable AppImage packages.
+          - name: Linux
+            platform: ubuntu-22.04
+            args: "--bundles deb,rpm,appimage"
+            artifact: housekeeping-app-linux
+            paths: |
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/rpm/*.rpm
+              src-tauri/target/release/bundle/appimage/*.AppImage
+
+          # macOS: universal DMG (Intel + Apple Silicon).
+          - name: macOS
+            platform: macos-latest
+            args: "--target universal-apple-darwin --bundles dmg"
+            targets: "aarch64-apple-darwin,x86_64-apple-darwin"
+            appleSigningIdentity: "-"
+            artifact: housekeeping-app-macos
+            paths: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libfuse2 \
+            xdg-utils
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.targets || '' }}
+
+      - name: Cache Rust artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build Tauri app
+        env:
+          # Ad-hoc signature on macOS (no Apple certificate) so the app does not
+          # get reported as damaged on Apple Silicon.
+          APPLE_SIGNING_IDENTITY: ${{ matrix.appleSigningIdentity }}
+        run: bun run tauri build ${{ matrix.args }}
+
+      - name: Prepare Windows portable executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = (Get-Content "src-tauri/tauri.conf.json" -Raw | ConvertFrom-Json).version
+          $source = "src-tauri/target/release/housekeeping-app.exe"
+          if (-not (Test-Path $source)) {
+            throw "No se encontro el ejecutable compilado: $source"
+          }
+          $destination = "src-tauri/target/release/housekeeping-app_${version}_x64-portable.exe"
+          Copy-Item -Path $source -Destination $destination -Force
+
+      - name: Upload bundles
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.paths }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download all bundles
+        uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Extract release notes from CHANGELOG
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          found=0
+          {
+            while IFS= read -r line; do
+              if [[ "$line" == "## [$version]"* ]]; then
+                found=1
+                continue
+              fi
+              if (( found )) && [[ "$line" == "## "* ]]; then
+                break
+              fi
+              if (( found )); then
+                printf '%s\n' "$line"
+              fi
+            done < CHANGELOG.md
+          } > release-notes.md
+
+          if [[ ! -s release-notes.md ]]; then
+            {
+              printf 'Release %s\n\n' "$GITHUB_REF_NAME"
+              printf 'See CHANGELOG.md for details.\n'
+            } > release-notes.md
+          fi
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete "$GITHUB_REF_NAME" --yes || true
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "Gestion de Limpieza $GITHUB_REF_NAME" \
+            --notes-file release-notes.md \
+            --verify-tag
